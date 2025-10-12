@@ -32,7 +32,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./football-open/data:/app/football-open/data:ro
+      - ./backend/open-data:/app/football-open:ro
     restart: unless-stopped
 
   frontend:
