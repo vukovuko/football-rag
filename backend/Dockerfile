@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install ALL dependencies (need devDeps for TypeScript build)
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -32,7 +32,7 @@ RUN apk add --no-cache postgresql-client
 COPY package*.json ./
 
 # Install ONLY production dependencies
-RUN npm ci --only=production
+RUN npm install --only=production
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
