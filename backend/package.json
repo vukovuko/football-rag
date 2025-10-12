@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:migrate": "npx drizzle-kit migrate",
+    "db:migrate": "npx drizzle-kit migrate --config=./drizzle.config.ts",
     "db:studio": "drizzle-kit studio",
     "etl:matches": "node dist/src/etl/load-matches.js",
     "etl:competitions": "node dist/src/etl/load-competitions.js",
