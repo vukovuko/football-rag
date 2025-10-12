@@ -37,9 +37,6 @@ RUN npm install --only=production
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Copy football-open folder structure (data will be mounted via volume)
-COPY --from=builder /app/football-open ./football-open
-
 # Copy migrations from builder
 COPY --from=builder /app/drizzle ./drizzle
 
