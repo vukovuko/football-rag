@@ -1,45 +1,19 @@
-# ============================================
-# Builder stage
-# ============================================
-FROM node:24-alpine AS builder
-
-WORKDIR /app
-
-# Install ALL dependencies (need devDeps for TypeScript build)
-COPY package*.json ./
-RUN npm install
-
-# Copy source code
-COPY . .
-
-# Generate Drizzle migrations (drizzle-kit available from npm ci)
-RUN npm run db:generate
-
-# Build TypeScript to dist/ using tsconfig.build.json
-RUN npm run build
-
-# ============================================
-# Production stage
-# ============================================
 FROM node:24-alpine
 
 WORKDIR /app
 
-# Install postgresql-client for pg_isready
+# Install postgresql-client for pg_isready (needed by entrypoint)
 RUN apk add --no-cache postgresql-client
 
-# Copy package files
+# Install dependencies
 COPY package*.json ./
+RUN npm install
 
-# Install ONLY production dependencies
-RUN npm install --only=production
+# Copy all source files
+COPY . .
 
-# Copy built files from builder
-COPY --from=builder /app/dist ./dist
-
-# Copy migrations and config from builder
-COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+# Build TypeScript
+RUN npm run build
 
 # Expose port
 EXPOSE 3000
@@ -49,5 +23,5 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["npm", "start"]
+CMD ["node", "dist/src/index.js"]
 
