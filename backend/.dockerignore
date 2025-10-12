@@ -1,12 +1,6 @@
 # Dependencies
 node_modules
 
-# Build output
-dist
-
-# Migrations (generated in Docker)
-drizzle
-
 # Environment files
 !.env.example
 !.env.production.example
