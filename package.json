@@ -1,0 +1,17 @@
+{
+  "name": "football-data",
+  "version": "1.0.0",
+  "description": "StatsBomb Football Data Analytics Platform",
+  "scripts": {
+    "setup": "npm install && npm install --prefix backend && npm install --prefix frontend",
+    "db:init": "npm run db:migrate --prefix backend && node backend/dist/src/db/seed-positions.js && node backend/dist/src/db/seed-event-types.js",
+    "etl:all": "npm run etl:matches --prefix backend && npm run etl:competitions --prefix backend && npm run etl:lineups --prefix backend && npm run etl:360 --prefix backend && npm run etl:events --prefix backend",
+    "dev": "concurrently -n \"backend,frontend\" -c \"blue,magenta\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

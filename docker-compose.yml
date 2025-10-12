@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: football-data-postgres
+    environment:
+      POSTGRES_USER: football_user
+      POSTGRES_PASSWORD: football_pass
+      POSTGRES_DB: football_data
+    ports:
+      - "54321:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+

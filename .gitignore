@@ -1,0 +1,10 @@
+.claude
+.cursor
+.cursorrules
+starting_over/
+TODO_TOMORROW/
+RUN_ETL_PRODUCTION.md
+deploy.sh
+SIMPLE_DEPLOY.md
+DEPLOY_VPS.md
+node_modules
