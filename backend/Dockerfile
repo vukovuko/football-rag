@@ -37,8 +37,9 @@ RUN npm install --only=production
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Copy migrations from builder
+# Copy migrations and config from builder
 COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 
 # Expose port
 EXPOSE 3000
