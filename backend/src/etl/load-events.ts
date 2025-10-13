@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { sql } from "drizzle-orm";
+import { env } from "../../env.ts";
 import { db } from "../db/index.ts";
 import {
   events,
@@ -23,10 +23,7 @@ import {
   eventRelationships,
 } from "../db/index.ts";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const EVENTS_PATH = path.join(__dirname, "../../football-open/data/events");
+const EVENTS_PATH = path.join(env.DATA_PATH, "events");
 
 // Batch sizes (tuned to avoid parameter limit)
 const EVENT_BATCH_SIZE = 500; // 500 events × 20 fields = 10k params

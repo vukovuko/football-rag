@@ -1,14 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { sql } from "drizzle-orm";
+import { env } from "../../env.ts";
 import { db } from "../db/index.ts";
 import { threeSixtyFrames, threeSixtyPlayers, matches } from "../db/index.ts";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const DATA_PATH = path.join(__dirname, "../../football-open/data/three-sixty");
+const DATA_PATH = path.join(env.DATA_PATH, "three-sixty");
 
 // ============================================================================
 // TypeScript Interfaces (matching JSON structure)
