@@ -22,8 +22,11 @@ app.use(
   })
 );
 
+// API Routes (all under /api prefix)
+const apiRouter = express.Router();
+
 // Health check endpoint
-app.get("/health", (req, res) => {
+apiRouter.get("/health", (req, res) => {
   res.status(200).json({
     status: "OK",
     timestamp: new Date().toISOString(),
@@ -31,7 +34,8 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Routes
+// Mount all API routes under /api
+app.use("/api", apiRouter);
 
 // 404 handler
 app.use((req, res) => {
