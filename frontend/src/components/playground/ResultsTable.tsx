@@ -131,7 +131,7 @@ export default function ResultsTable({ result }: ResultsTableProps) {
 
       {/* Table - with horizontal scroll */}
       <div className="flex-1 min-w-0 overflow-x-auto overflow-y-auto">
-        <table className="min-w-max caption-bottom text-base">
+        <table className="min-w-max caption-bottom text-base w-full">
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow>
               {result.columns.map((col) => (
