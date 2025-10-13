@@ -30,7 +30,7 @@ export default function FeaturedPlayers() {
     <div className="mb-16">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-foreground">Players</h2>
-        <Link to="/players" search={{ page: 1 }}>
+        <Link to="/players" search={{ page: 1, search: "" }}>
           <Button>View all</Button>
         </Link>
       </div>

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -11,6 +12,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { SearchIcon } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -19,6 +22,7 @@ export const Route = createFileRoute("/teams")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
       page: Number(search?.page ?? 1),
+      search: (search?.search as string) || "",
     };
   },
 });
@@ -44,10 +48,14 @@ type TeamsResponse = {
   };
 };
 
-async function fetchTeams(page: number): Promise<TeamsResponse> {
+async function fetchTeams(
+  page: number,
+  search: string
+): Promise<TeamsResponse> {
   const offset = (page - 1) * ITEMS_PER_PAGE;
+  const searchParam = search ? `&search=${encodeURIComponent(search)}` : "";
   const res = await fetch(
-    `/api/teams?limit=${ITEMS_PER_PAGE}&offset=${offset}`
+    `/api/teams?limit=${ITEMS_PER_PAGE}&offset=${offset}${searchParam}`
   );
   if (!res.ok) throw new Error("Failed to fetch teams");
   return res.json();
@@ -66,17 +74,34 @@ function TeamSkeleton() {
 
 function TeamsPage() {
   const navigate = useNavigate();
-  const { page = 1 } = Route.useSearch();
+  const { page = 1, search = "" } = Route.useSearch();
+  const [inputValue, setInputValue] = useState(search);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["teams", page],
-    queryFn: () => fetchTeams(page),
+    queryKey: ["teams", page, search],
+    queryFn: () => fetchTeams(page, search),
   });
+
+  // Sync input value with URL search param when navigating back
+  useEffect(() => {
+    setInputValue(search);
+  }, [search]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputValue !== search) {
+        navigate({ to: "/teams", search: { page: 1, search: inputValue } });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [inputValue]);
 
   const totalPages = data ? Math.ceil(data.meta.total / ITEMS_PER_PAGE) : 0;
 
   const handlePageChange = (newPage: number) => {
-    navigate({ to: "/teams", search: { page: newPage } });
+    navigate({ to: "/teams", search: { page: newPage, search } });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -117,10 +142,10 @@ function TeamsPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-6">
+    <div className="container mx-auto py-4 px-4 md:py-8 md:px-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Teams</h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mb-4">
           {data
             ? `Showing ${data.meta.offset + 1}-${Math.min(
                 data.meta.offset + ITEMS_PER_PAGE,
@@ -128,6 +153,17 @@ function TeamsPage() {
               )} of ${data.meta.total} teams`
             : "Football teams from around the world"}
         </p>
+
+        <div className="relative max-w-md">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search teams..."
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {error && (

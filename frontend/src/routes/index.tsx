@@ -8,7 +8,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   return (
-    <div className="container mx-auto py-12 px-6">
+    <div className="container mx-auto py-6 px-4 md:py-12 md:px-6">
       <FeaturedPlayers />
       <FeaturedTeams />
     </div>

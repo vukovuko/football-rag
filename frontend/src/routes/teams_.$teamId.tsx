@@ -75,7 +75,7 @@ function TeamDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-6 max-w-4xl">
+    <div className="container mx-auto py-4 px-4 md:py-8 md:px-6 max-w-4xl">
       <div className="flex items-center gap-4 mb-8">
         <Button
           variant="ghost"
@@ -85,7 +85,9 @@ function TeamDetailPage() {
         >
           <ArrowLeftIcon className="h-5 w-5" />
         </Button>
-        <h1 className="text-4xl font-bold text-foreground">{team.teamName}</h1>
+        <h1 className="text-2xl md:text-4xl font-bold text-foreground">
+          {team.teamName}
+        </h1>
       </div>
 
       <Card>

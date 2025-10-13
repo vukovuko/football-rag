@@ -42,7 +42,7 @@ export default function Header() {
           <nav className="flex items-center gap-6">
             <Link
               to="/players"
-              search={{ page: 1 }}
+              search={{ page: 1, search: "" }}
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               activeProps={{
                 className: "text-sm font-medium text-foreground",
@@ -52,7 +52,7 @@ export default function Header() {
             </Link>
             <Link
               to="/teams"
-              search={{ page: 1 }}
+              search={{ page: 1, search: "" }}
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               activeProps={{
                 className: "text-sm font-medium text-foreground",
@@ -110,7 +110,7 @@ export default function Header() {
                 <nav className="flex flex-col gap-4 items-end">
                   <Link
                     to="/players"
-                    search={{ page: 1 }}
+                    search={{ page: 1, search: "" }}
                     className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
                     activeProps={{
                       className: "text-base font-medium text-foreground",
@@ -121,7 +121,7 @@ export default function Header() {
                   </Link>
                   <Link
                     to="/teams"
-                    search={{ page: 1 }}
+                    search={{ page: 1, search: "" }}
                     className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
                     activeProps={{
                       className: "text-base font-medium text-foreground",

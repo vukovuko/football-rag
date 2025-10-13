@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -12,6 +13,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { SearchIcon } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -20,6 +23,7 @@ export const Route = createFileRoute("/players")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
       page: Number(search?.page ?? 1),
+      search: (search?.search as string) || "",
     };
   },
 });
@@ -44,10 +48,14 @@ type PlayersResponse = {
   };
 };
 
-async function fetchPlayers(page: number): Promise<PlayersResponse> {
+async function fetchPlayers(
+  page: number,
+  search: string
+): Promise<PlayersResponse> {
   const offset = (page - 1) * ITEMS_PER_PAGE;
+  const searchParam = search ? `&search=${encodeURIComponent(search)}` : "";
   const res = await fetch(
-    `/api/players?limit=${ITEMS_PER_PAGE}&offset=${offset}`
+    `/api/players?limit=${ITEMS_PER_PAGE}&offset=${offset}${searchParam}`
   );
   if (!res.ok) throw new Error("Failed to fetch players");
   return res.json();
@@ -69,17 +77,34 @@ function PlayerSkeleton() {
 
 function PlayersPage() {
   const navigate = useNavigate();
-  const { page = 1 } = Route.useSearch();
+  const { page = 1, search = "" } = Route.useSearch();
+  const [inputValue, setInputValue] = useState(search);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["players", page],
-    queryFn: () => fetchPlayers(page),
+    queryKey: ["players", page, search],
+    queryFn: () => fetchPlayers(page, search),
   });
+
+  // Sync input value with URL search param when navigating back
+  useEffect(() => {
+    setInputValue(search);
+  }, [search]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputValue !== search) {
+        navigate({ to: "/players", search: { page: 1, search: inputValue } });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [inputValue]);
 
   const totalPages = data ? Math.ceil(data.meta.total / ITEMS_PER_PAGE) : 0;
 
   const handlePageChange = (newPage: number) => {
-    navigate({ to: "/players", search: { page: newPage } });
+    navigate({ to: "/players", search: { page: newPage, search } });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -120,10 +145,10 @@ function PlayersPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-6">
+    <div className="container mx-auto py-4 px-4 md:py-8 md:px-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Players</h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mb-4">
           {data
             ? `Showing ${data.meta.offset + 1}-${Math.min(
                 data.meta.offset + ITEMS_PER_PAGE,
@@ -131,6 +156,17 @@ function PlayersPage() {
               )} of ${data.meta.total} players`
             : "Top goal scorers from the database"}
         </p>
+
+        <div className="relative max-w-md">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search players..."
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {error && (

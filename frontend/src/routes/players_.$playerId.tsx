@@ -79,7 +79,7 @@ function PlayerDetailPage() {
   const minutesPlayed = parseFloat(player.totalMinutesPlayed);
 
   return (
-    <div className="container mx-auto py-8 px-6 max-w-4xl">
+    <div className="container mx-auto py-4 px-4 md:py-8 md:px-6 max-w-4xl">
       <div className="flex items-center gap-4 mb-8">
         <Button
           variant="ghost"
@@ -90,11 +90,11 @@ function PlayerDetailPage() {
           <ArrowLeftIcon className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-4xl font-bold text-foreground">
+          <h1 className="text-2xl md:text-4xl font-bold text-foreground">
             {player.playerName}
           </h1>
           {player.playerNickname && (
-            <p className="text-lg text-muted-foreground mt-1">
+            <p className="text-base md:text-lg text-muted-foreground mt-1">
               "{player.playerNickname}"
             </p>
           )}

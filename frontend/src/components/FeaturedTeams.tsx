@@ -30,7 +30,7 @@ export default function FeaturedTeams() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-foreground">Teams</h2>
-        <Link to="/teams" search={{ page: 1 }}>
+        <Link to="/teams" search={{ page: 1, search: "" }}>
           <Button>View all</Button>
         </Link>
       </div>

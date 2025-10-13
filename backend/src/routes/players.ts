@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.ts";
 import { players } from "../db/schema/lineups.ts";
-import { desc, asc, count, eq } from "drizzle-orm";
+import { desc, asc, count, eq, ilike } from "drizzle-orm";
 import { validateQuery } from "../middleware/validation.ts";
 
 const router = Router();
@@ -15,6 +15,7 @@ const playersQuerySchema = z.object({
     .enum(["totalGoals", "totalAssists", "totalMatches", "playerName"])
     .default("totalMatches"),
   order: z.enum(["asc", "desc"]).default("desc"),
+  search: z.string().optional(),
 });
 
 /**
@@ -24,7 +25,7 @@ const playersQuerySchema = z.object({
 router.get("/", validateQuery(playersQuerySchema), async (req, res) => {
   try {
     // Parse and validate query with defaults
-    const { limit, offset, sortBy, order } = playersQuerySchema.parse(
+    const { limit, offset, sortBy, order, search } = playersQuerySchema.parse(
       req.query
     );
 
@@ -38,7 +39,7 @@ router.get("/", validateQuery(playersQuerySchema), async (req, res) => {
     const sortField = sortFieldMap[sortBy];
 
     // Build query
-    const baseQuery = db
+    let baseQuery = db
       .select({
         playerId: players.playerId,
         playerName: players.playerName,
@@ -50,6 +51,13 @@ router.get("/", validateQuery(playersQuerySchema), async (req, res) => {
       .from(players)
       .$dynamic();
 
+    // Apply search filter if provided
+    if (search && search.trim()) {
+      baseQuery = baseQuery.where(
+        ilike(players.playerName, `%${search.trim()}%`)
+      );
+    }
+
     const queryWithSort =
       order === "asc"
         ? baseQuery.orderBy(asc(sortField))
@@ -57,10 +65,14 @@ router.get("/", validateQuery(playersQuerySchema), async (req, res) => {
 
     const playersList = await queryWithSort.limit(limit).offset(offset);
 
-    // Get total count
-    const [{ value: total }] = await db
-      .select({ value: count() })
-      .from(players);
+    // Get total count with search filter
+    let countQuery = db.select({ value: count() }).from(players).$dynamic();
+    if (search && search.trim()) {
+      countQuery = countQuery.where(
+        ilike(players.playerName, `%${search.trim()}%`)
+      );
+    }
+    const [{ value: total }] = await countQuery;
 
     res.json({
       success: true,
