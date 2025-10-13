@@ -87,4 +87,53 @@ router.get("/", validateQuery(teamsQuerySchema), async (req, res) => {
   }
 });
 
+/**
+ * GET /api/teams/:id
+ * Get individual team by ID
+ */
+router.get("/:id", async (req, res) => {
+  try {
+    const teamId = parseInt(req.params.id);
+
+    if (isNaN(teamId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid team ID",
+      });
+    }
+
+    const teamData = await db
+      .select({
+        teamId: teams.teamId,
+        teamName: teams.teamName,
+        teamGender: teams.teamGender,
+        country: {
+          id: countries.id,
+          name: countries.name,
+        },
+      })
+      .from(teams)
+      .leftJoin(countries, eq(teams.countryId, countries.id))
+      .where(eq(teams.teamId, teamId));
+
+    if (!teamData.length) {
+      return res.status(404).json({
+        success: false,
+        error: "Team not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: teamData[0],
+    });
+  } catch (error) {
+    console.error("Error fetching team:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch team",
+    });
+  }
+});
+
 export { router as teamsRouter };

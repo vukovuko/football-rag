@@ -30,7 +30,7 @@ export default function FeaturedTeams() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-foreground">Teams</h2>
-        <Link to="/teams">
+        <Link to="/teams" search={{ page: 1 }}>
           <Button>View all</Button>
         </Link>
       </div>
@@ -46,19 +46,22 @@ export default function FeaturedTeams() {
               </Card>
             ))
           : data?.data?.map((team: Team) => (
-              <Card
+              <Link
                 key={team.teamId}
-                className="hover:bg-accent/50 transition-colors"
+                to="/teams/$teamId"
+                params={{ teamId: team.teamId.toString() }}
               >
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-1">
-                    {team.teamName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {team.country?.name || "Unknown"}
-                  </p>
-                </CardContent>
-              </Card>
+                <Card className="hover:bg-accent/50 transition-colors h-full">
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
+                      {team.teamName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {team.country?.name || "Unknown"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
       </div>
     </div>

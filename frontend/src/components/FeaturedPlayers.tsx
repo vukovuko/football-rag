@@ -30,7 +30,7 @@ export default function FeaturedPlayers() {
     <div className="mb-16">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-foreground">Players</h2>
-        <Link to="/players">
+        <Link to="/players" search={{ page: 1 }}>
           <Button>View all</Button>
         </Link>
       </div>
@@ -49,24 +49,27 @@ export default function FeaturedPlayers() {
               </Card>
             ))
           : data?.data?.map((player: Player) => (
-              <Card
+              <Link
                 key={player.playerId}
-                className="hover:bg-accent/50 transition-colors"
+                to="/players/$playerId"
+                params={{ playerId: player.playerId.toString() }}
               >
-                <CardContent className="p-4 flex flex-col h-full">
-                  <h3 className="text-sm font-semibold text-foreground mb-3 line-clamp-2 min-h-[2.5rem]">
-                    {player.playerName}
-                  </h3>
-                  <div className="flex gap-2 mt-auto">
-                    <Badge variant="secondary" className="text-xs">
-                      {player.totalGoals} goals
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {player.totalMatches} matches
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
+                <Card className="hover:bg-accent/50 transition-colors h-full">
+                  <CardContent className="p-4 flex flex-col h-full">
+                    <h3 className="text-sm font-semibold text-foreground mb-3 line-clamp-2 min-h-[2.5rem]">
+                      {player.playerName}
+                    </h3>
+                    <div className="flex gap-2 mt-auto">
+                      <Badge variant="secondary" className="text-xs">
+                        {player.totalGoals} goals
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {player.totalMatches} matches
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
       </div>
     </div>

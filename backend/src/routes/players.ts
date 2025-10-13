@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.ts";
 import { players } from "../db/schema/lineups.ts";
-import { desc, asc, count } from "drizzle-orm";
+import { desc, asc, count, eq } from "drizzle-orm";
 import { validateQuery } from "../middleware/validation.ts";
 
 const router = Router();
@@ -77,6 +77,46 @@ router.get("/", validateQuery(playersQuerySchema), async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to fetch players",
+    });
+  }
+});
+
+/**
+ * GET /api/players/:id
+ * Get individual player by ID
+ */
+router.get("/:id", async (req, res) => {
+  try {
+    const playerId = parseInt(req.params.id);
+
+    if (isNaN(playerId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid player ID",
+      });
+    }
+
+    const [player] = await db
+      .select()
+      .from(players)
+      .where(eq(players.playerId, playerId));
+
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        error: "Player not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: player,
+    });
+  } catch (error) {
+    console.error("Error fetching player:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch player",
     });
   }
 });
