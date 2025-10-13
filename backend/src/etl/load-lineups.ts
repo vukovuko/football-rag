@@ -117,6 +117,9 @@ function loadAllLineups(): Map<
     "lineups"
   );
 
+  console.log("🔍 [LINEUPS DEBUG] process.cwd():", process.cwd());
+  console.log("🔍 [LINEUPS DEBUG] env.DATA_PATH:", env.DATA_PATH);
+  console.log("🔍 [LINEUPS DEBUG] Final lineupsDir:", lineupsDir);
   console.log(`📂 Reading from: ${path.relative(process.cwd(), lineupsDir)}\n`);
 
   const files = fs.readdirSync(lineupsDir).filter((f) => f.endsWith(".json"));

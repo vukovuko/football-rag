@@ -23,7 +23,15 @@ import {
   eventRelationships,
 } from "../db/index.ts";
 
-const EVENTS_PATH = path.join(env.DATA_PATH, "events");
+const EVENTS_PATH = path.join(
+  process.cwd(),
+  env.DATA_PATH || "./football-open/data",
+  "events"
+);
+
+console.log("🔍 [EVENTS DEBUG] process.cwd():", process.cwd());
+console.log("🔍 [EVENTS DEBUG] env.DATA_PATH:", env.DATA_PATH);
+console.log("🔍 [EVENTS DEBUG] Final EVENTS_PATH:", EVENTS_PATH);
 
 // Batch sizes (tuned to avoid parameter limit)
 const EVENT_BATCH_SIZE = 500; // 500 events × 20 fields = 10k params

@@ -5,7 +5,15 @@ import { env } from "../../env.ts";
 import { db } from "../db/index.ts";
 import { threeSixtyFrames, threeSixtyPlayers, matches } from "../db/index.ts";
 
-const DATA_PATH = path.join(env.DATA_PATH, "three-sixty");
+const DATA_PATH = path.join(
+  process.cwd(),
+  env.DATA_PATH || "./football-open/data",
+  "three-sixty"
+);
+
+console.log("🔍 [360 DEBUG] process.cwd():", process.cwd());
+console.log("🔍 [360 DEBUG] env.DATA_PATH:", env.DATA_PATH);
+console.log("🔍 [360 DEBUG] Final DATA_PATH:", DATA_PATH);
 
 // ============================================================================
 // TypeScript Interfaces (matching JSON structure)
