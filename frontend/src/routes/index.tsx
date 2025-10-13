@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import FeaturedPlayers from "@/components/FeaturedPlayers";
+import FeaturedTeams from "@/components/FeaturedTeams";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -6,9 +8,9 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   return (
-    <div className="p-8">
-      <h1 className="text-4xl font-bold text-foreground mb-4">Football RAG</h1>
-      <p className="text-muted-foreground">12M+ events ready to explore</p>
+    <div className="container mx-auto py-12 px-6">
+      <FeaturedPlayers />
+      <FeaturedTeams />
     </div>
   );
 }

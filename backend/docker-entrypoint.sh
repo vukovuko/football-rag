@@ -47,6 +47,10 @@ if [ "$INIT_DB" = "true" ]; then
   node dist/src/etl/load-events.js
   
   echo ""
+  echo "🔢 Aggregating player statistics..."
+  node dist/src/etl/aggregate-player-stats.js
+  
+  echo ""
   echo "✅ ALL DATA LOADED!"
   echo "⚠️  IMPORTANT: Set INIT_DB=false in .env and redeploy!"
   echo ""

@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env, isDev, isTestEnv } from "../env.ts";
+import { playersRouter } from "./routes/players.ts";
+import { teamsRouter } from "./routes/teams.ts";
 
 const app = express();
 
@@ -33,6 +35,10 @@ apiRouter.get("/health", (req, res) => {
     service: "Football DB API",
   });
 });
+
+// Resource routes
+apiRouter.use("/players", playersRouter);
+apiRouter.use("/teams", teamsRouter);
 
 // Mount all API routes under /api
 app.use("/api", apiRouter);
