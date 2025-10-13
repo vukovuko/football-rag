@@ -5,6 +5,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import { ThemeProvider } from "../components/theme-provider";
 import Header from "../components/Header";
+import { Toaster } from "../components/ui/sonner";
 
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -17,6 +18,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     <ThemeProvider defaultTheme="system" storageKey="football-rag-theme">
       <Header />
       <Outlet />
+      <Toaster position="bottom-right" />
       <TanStackDevtools
         config={{
           position: "bottom-right",

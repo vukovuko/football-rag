@@ -1,0 +1,106 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import TableList from "@/components/playground/TableList";
+import SchemaCanvas from "@/components/playground/SchemaCanvas";
+import QueryEditor from "@/components/playground/QueryEditor";
+import ResultsTable from "@/components/playground/ResultsTable";
+
+export const Route = createFileRoute("/playground")({
+  component: PlaygroundPage,
+});
+
+export type QueryResult = {
+  rows: Record<string, any>[];
+  columns: { name: string; type: string }[];
+  rowCount: number;
+  executionTime: number;
+} | null;
+
+function PlaygroundPage() {
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [tableToInsert, setTableToInsert] = useState<string | null>(null);
+  const [queryResult, setQueryResult] = useState<QueryResult>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [activeTab, setActiveTab] = useState("query");
+
+  const handleTableSelect = (tableName: string) => {
+    setSelectedTable(tableName);
+  };
+
+  const handleTableDoubleClick = (tableName: string) => {
+    setTableToInsert(tableName);
+    // Reset after a short delay to allow the effect to trigger
+    setTimeout(() => setTableToInsert(null), 100);
+  };
+
+  return (
+    <div className="h-screen flex flex-col bg-background">
+      {/* Main content area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left sidebar - Table list (only show on Schema tab) */}
+        {activeTab === "schema" && (
+          <div className="w-64 border-r border-border overflow-y-auto bg-card">
+            <TableList
+              onTableSelect={handleTableSelect}
+              selectedTable={selectedTable}
+            />
+          </div>
+        )}
+
+        {/* Center area - Tabs for Schema/Query */}
+        <div className="flex-1 flex flex-col">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex-1 flex flex-col"
+          >
+            <div className="bg-card px-4">
+              <TabsList className="bg-transparent">
+                <TabsTrigger value="query">Query Editor</TabsTrigger>
+                <TabsTrigger value="schema">Schema Viewer</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent
+              value="query"
+              className="flex-1 m-0 flex flex-col overflow-hidden"
+            >
+              {/* Query Editor - takes 50% when results shown, full height otherwise */}
+              <div
+                className={
+                  queryResult
+                    ? "h-1/2 min-h-0 flex-shrink-0 overflow-hidden"
+                    : "flex-1 overflow-hidden"
+                }
+              >
+                <QueryEditor
+                  onQueryResult={setQueryResult}
+                  isExecuting={isExecuting}
+                  setIsExecuting={setIsExecuting}
+                  insertTableName={tableToInsert}
+                  autoRun={true}
+                />
+              </div>
+
+              {/* Results Table - takes 50% when present */}
+              {queryResult && (
+                <div className="h-1/2 min-h-0 flex-shrink-0 overflow-hidden">
+                  <ResultsTable result={queryResult} />
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="schema" className="flex-1 m-0 p-0">
+              <SchemaCanvas
+                selectedTable={selectedTable}
+                onTableSelect={handleTableSelect}
+                onTableDoubleClick={handleTableDoubleClick}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </div>
+  );
+}

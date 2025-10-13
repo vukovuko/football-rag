@@ -60,6 +60,15 @@ export default function Header() {
             >
               Teams
             </Link>
+            <Link
+              to="/playground"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              activeProps={{
+                className: "text-sm font-medium text-foreground",
+              }}
+            >
+              Playground
+            </Link>
           </nav>
         </div>
 
@@ -129,6 +138,16 @@ export default function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Teams
+                  </Link>
+                  <Link
+                    to="/playground"
+                    className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    activeProps={{
+                      className: "text-base font-medium text-foreground",
+                    }}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Playground
                   </Link>
                 </nav>
               </div>
