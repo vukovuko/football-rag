@@ -19,6 +19,7 @@
 
 import fs from "fs";
 import path from "path";
+import { sql } from "drizzle-orm";
 import { env } from "../../env.ts";
 import { db } from "../db/index.ts";
 import {
@@ -755,29 +756,29 @@ async function loadMatchesETL() {
       matchesCount,
       linksCount,
     ] = await Promise.all([
-      db.select().from(countries),
-      db.select().from(competitions),
-      db.select().from(seasons),
-      db.select().from(competitionStages),
-      db.select().from(teams),
-      db.select().from(managers),
-      db.select().from(stadiums),
-      db.select().from(referees),
-      db.select().from(matches),
-      db.select().from(matchManagers),
+      db.select({ count: sql<number>`count(*)::int` }).from(countries),
+      db.select({ count: sql<number>`count(*)::int` }).from(competitions),
+      db.select({ count: sql<number>`count(*)::int` }).from(seasons),
+      db.select({ count: sql<number>`count(*)::int` }).from(competitionStages),
+      db.select({ count: sql<number>`count(*)::int` }).from(teams),
+      db.select({ count: sql<number>`count(*)::int` }).from(managers),
+      db.select({ count: sql<number>`count(*)::int` }).from(stadiums),
+      db.select({ count: sql<number>`count(*)::int` }).from(referees),
+      db.select({ count: sql<number>`count(*)::int` }).from(matches),
+      db.select({ count: sql<number>`count(*)::int` }).from(matchManagers),
     ]);
 
     console.log("   📊 Final Counts:\n");
-    console.log(`      Countries:          ${countriesCount.length}`);
-    console.log(`      Competitions:       ${competitionsCount.length}`);
-    console.log(`      Seasons:            ${seasonsCount.length}`);
-    console.log(`      Competition Stages: ${stagesCount.length}`);
-    console.log(`      Teams:              ${teamsCount.length}`);
-    console.log(`      Managers:           ${managersCount.length}`);
-    console.log(`      Stadiums:           ${stadiumsCount.length}`);
-    console.log(`      Referees:           ${refereesCount.length}`);
-    console.log(`      Matches:            ${matchesCount.length}`);
-    console.log(`      Manager Links:      ${linksCount.length}`);
+    console.log(`      Countries:          ${countriesCount[0].count}`);
+    console.log(`      Competitions:       ${competitionsCount[0].count}`);
+    console.log(`      Seasons:            ${seasonsCount[0].count}`);
+    console.log(`      Competition Stages: ${stagesCount[0].count}`);
+    console.log(`      Teams:              ${teamsCount[0].count}`);
+    console.log(`      Managers:           ${managersCount[0].count}`);
+    console.log(`      Stadiums:           ${stadiumsCount[0].count}`);
+    console.log(`      Referees:           ${refereesCount[0].count}`);
+    console.log(`      Matches:            ${matchesCount[0].count}`);
+    console.log(`      Manager Links:      ${linksCount[0].count}`);
 
     console.log();
     console.log("═".repeat(70));

@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { sql } from "drizzle-orm";
 import { env } from "../../env.ts";
 import { db } from "../db/index.ts";
 import {
@@ -434,17 +435,17 @@ async function loadLineupsETL() {
     playerPositionsCount,
     playerCardsCount,
   ] = await Promise.all([
-    db.select().from(players),
-    db.select().from(playerLineups),
-    db.select().from(playerPositions),
-    db.select().from(playerCards),
+    db.select({ count: sql<number>`count(*)::int` }).from(players),
+    db.select({ count: sql<number>`count(*)::int` }).from(playerLineups),
+    db.select({ count: sql<number>`count(*)::int` }).from(playerPositions),
+    db.select({ count: sql<number>`count(*)::int` }).from(playerCards),
   ]);
 
   console.log("   📊 Final Counts:\n");
-  console.log(`      Players:          ${playersCount.length}`);
-  console.log(`      Player Lineups:   ${playerLineupsCount.length}`);
-  console.log(`      Player Positions: ${playerPositionsCount.length}`);
-  console.log(`      Player Cards:     ${playerCardsCount.length}`);
+  console.log(`      Players:          ${playersCount[0].count}`);
+  console.log(`      Player Lineups:   ${playerLineupsCount[0].count}`);
+  console.log(`      Player Positions: ${playerPositionsCount[0].count}`);
+  console.log(`      Player Cards:     ${playerCardsCount[0].count}`);
 
   console.log();
   console.log("═".repeat(70));
