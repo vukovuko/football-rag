@@ -23,6 +23,7 @@ function PlaygroundPage() {
   const [queryResult, setQueryResult] = useState<QueryResult>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [activeTab, setActiveTab] = useState("query");
+  const [hasAutoRun, setHasAutoRun] = useState(false);
 
   const handleTableSelect = (tableName: string) => {
     setSelectedTable(tableName);
@@ -53,7 +54,7 @@ function PlaygroundPage() {
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
-            className="flex-1 flex flex-col"
+            className="flex-1 flex flex-col h-full"
           >
             <div className="bg-card px-4">
               <TabsList className="bg-transparent">
@@ -79,7 +80,8 @@ function PlaygroundPage() {
                   isExecuting={isExecuting}
                   setIsExecuting={setIsExecuting}
                   insertTableName={tableToInsert}
-                  autoRun={true}
+                  autoRun={!hasAutoRun}
+                  onAutoRunComplete={() => setHasAutoRun(true)}
                 />
               </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ interface QueryEditorProps {
   setIsExecuting: (executing: boolean) => void;
   insertTableName: string | null;
   autoRun?: boolean;
+  onAutoRunComplete?: () => void;
 }
 
 const DEFAULT_QUERY = `SELECT * FROM players LIMIT 10;`;
@@ -93,10 +94,11 @@ export default function QueryEditor({
   setIsExecuting,
   insertTableName,
   autoRun = false,
+  onAutoRunComplete,
 }: QueryEditorProps) {
   const [query, setQuery] = useState(DEFAULT_QUERY);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [hasAutoRun, setHasAutoRun] = useState(false);
+  const hasAutoRunRef = useRef(false);
 
   // Insert table name when double-clicked in schema canvas
   useEffect(() => {
@@ -153,9 +155,10 @@ export default function QueryEditor({
 
   // Auto-run query on mount if requested
   useEffect(() => {
-    if (autoRun && !hasAutoRun && !isExecuting) {
-      setHasAutoRun(true);
+    if (autoRun && !hasAutoRunRef.current && !isExecuting) {
+      hasAutoRunRef.current = true;
       handleRunQuery();
+      onAutoRunComplete?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRun]);
