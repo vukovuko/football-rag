@@ -88,7 +88,7 @@ export default function ResultsTable({ result }: ResultsTableProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-background min-w-0">
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-2 bg-card">
         <div className="text-xs md:text-sm text-muted-foreground flex-shrink-0">
@@ -130,14 +130,14 @@ export default function ResultsTable({ result }: ResultsTableProps) {
       </div>
 
       {/* Table - with horizontal scroll */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full caption-bottom text-sm">
+      <div className="flex-1 min-w-0 overflow-x-auto overflow-y-auto">
+        <table className="min-w-max caption-bottom text-base">
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow>
               {result.columns.map((col) => (
                 <TableHead
                   key={col.name}
-                  className="font-semibold whitespace-nowrap min-w-[120px]"
+                  className="font-semibold whitespace-nowrap min-w-[140px] text-sm"
                 >
                   {col.name}
                   <span className="ml-2 text-xs text-muted-foreground font-normal">
@@ -153,7 +153,7 @@ export default function ResultsTable({ result }: ResultsTableProps) {
                 {result.columns.map((col) => (
                   <TableCell
                     key={col.name}
-                    className="font-mono text-xs whitespace-nowrap min-w-[120px]"
+                    className="font-mono text-sm whitespace-nowrap min-w-[140px]"
                   >
                     {row[col.name] === null ? (
                       <span className="text-muted-foreground italic">NULL</span>

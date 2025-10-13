@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { env, isDev, isTestEnv } from "../env.ts";
 import { playersRouter } from "./routes/players.ts";
 import { teamsRouter } from "./routes/teams.ts";
+import { playgroundRouter } from "./routes/playground.ts";
 
 const app = express();
 
@@ -39,6 +40,7 @@ apiRouter.get("/health", (req, res) => {
 // Resource routes
 apiRouter.use("/players", playersRouter);
 apiRouter.use("/teams", teamsRouter);
+apiRouter.use("/playground", playgroundRouter);
 
 // Mount all API routes under /api
 app.use("/api", apiRouter);

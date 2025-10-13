@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import TableList from "@/components/playground/TableList";
 import SchemaCanvas from "@/components/playground/SchemaCanvas";
 import QueryEditor from "@/components/playground/QueryEditor";
 import ResultsTable from "@/components/playground/ResultsTable";
+import TableDocumentation from "@/components/playground/TableDocumentation";
 
 export const Route = createFileRoute("/playground")({
   component: PlaygroundPage,
@@ -38,41 +38,32 @@ function PlaygroundPage() {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Main content area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar - Table list (only show on Schema tab) */}
-        {activeTab === "schema" && (
-          <div className="w-64 border-r border-border overflow-y-auto bg-card">
-            <TableList
-              onTableSelect={handleTableSelect}
-              selectedTable={selectedTable}
-            />
-          </div>
-        )}
-
+      <div className="flex-1 flex overflow-hidden min-w-0">
         {/* Center area - Tabs for Schema/Query */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
-            className="flex-1 flex flex-col h-full"
+            className="flex-1 flex flex-col h-full min-w-0"
           >
             <div className="bg-card px-4">
               <TabsList className="bg-transparent">
                 <TabsTrigger value="query">Query Editor</TabsTrigger>
+                <TabsTrigger value="tables">Tables</TabsTrigger>
                 <TabsTrigger value="schema">Schema Viewer</TabsTrigger>
               </TabsList>
             </div>
 
             <TabsContent
               value="query"
-              className="flex-1 m-0 flex flex-col overflow-hidden"
+              className="flex-1 m-0 flex flex-col min-w-0 overflow-hidden"
             >
               {/* Query Editor - takes 50% when results shown, full height otherwise */}
               <div
                 className={
                   queryResult
-                    ? "h-1/2 min-h-0 flex-shrink-0 overflow-hidden"
-                    : "flex-1 overflow-hidden"
+                    ? "h-1/2 min-h-0 flex-shrink-0 min-w-0 overflow-hidden"
+                    : "flex-1 min-w-0 overflow-hidden"
                 }
               >
                 <QueryEditor
@@ -87,10 +78,14 @@ function PlaygroundPage() {
 
               {/* Results Table - takes 50% when present */}
               {queryResult && (
-                <div className="h-1/2 min-h-0 flex-shrink-0 overflow-hidden">
+                <div className="h-1/2 min-h-0 flex-shrink-0 min-w-0 overflow-hidden">
                   <ResultsTable result={queryResult} />
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="tables" className="flex-1 m-0 overflow-hidden">
+              <TableDocumentation />
             </TabsContent>
 
             <TabsContent value="schema" className="flex-1 m-0 p-0">

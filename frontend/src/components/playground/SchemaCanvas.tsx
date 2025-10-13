@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   type Node,
@@ -10,6 +10,9 @@ import {
   useNodesState,
   useEdgesState,
   MarkerType,
+  Handle,
+  Position,
+  useReactFlow,
 } from "@xyflow/react";
 import dagre from "dagre";
 import "@xyflow/react/dist/style.css";
@@ -18,8 +21,19 @@ import {
   Link2Icon,
   CheckCircleIcon,
   HelpCircleIcon,
+  MenuIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
+import TableList from "./TableList";
 
 type SchemaColumn = {
   name: string;
@@ -63,7 +77,13 @@ interface SchemaCanvasProps {
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: "TB", ranksep: 100, nodesep: 80 });
+  dagreGraph.setGraph({
+    rankdir: "LR",
+    ranksep: 150,
+    nodesep: 120,
+    marginx: 50,
+    marginy: 50,
+  });
 
   nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: 250, height: 200 });
@@ -109,6 +129,32 @@ function TableNode({ data }: { data: any }) {
         color: "hsl(var(--foreground))",
       }}
     >
+      {/* Connection handles */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="target"
+        style={{
+          background: "#6366f1",
+          width: 10,
+          height: 10,
+          border: "2px solid white",
+          left: -5,
+        }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source"
+        style={{
+          background: "#6366f1",
+          width: 10,
+          height: 10,
+          border: "2px solid white",
+          right: -5,
+        }}
+      />
+
       {/* Table header */}
       <div
         className="px-3 py-2 border-b border-border font-semibold text-sm flex items-center justify-between"
@@ -154,9 +200,74 @@ function TableNode({ data }: { data: any }) {
   );
 }
 
-const nodeTypes = {
-  table: TableNode,
-};
+// Component for drawer and controls inside ReactFlow
+function SchemaControls({
+  selectedTable,
+  onTableSelect,
+}: {
+  selectedTable: string | null;
+  onTableSelect: (tableName: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { fitView, getNode } = useReactFlow();
+
+  const handleTableClick = (tableName: string) => {
+    onTableSelect(tableName);
+    setOpen(false);
+
+    // Focus on the selected node
+    setTimeout(() => {
+      const node = getNode(tableName);
+      if (node) {
+        fitView({
+          nodes: [node],
+          duration: 500,
+          padding: 0.5,
+        });
+      }
+    }, 100);
+  };
+
+  return (
+    <>
+      <Controls />
+      <MiniMap
+        nodeStrokeWidth={3}
+        zoomable
+        pannable
+        style={{
+          backgroundColor: "hsl(var(--card))",
+          border: "1px solid hsl(var(--border))",
+        }}
+      />
+
+      {/* Drawer trigger button */}
+      <div className="absolute top-4 left-4 z-10">
+        <Drawer open={open} onOpenChange={setOpen} direction="left">
+          <DrawerTrigger asChild>
+            <Button variant="outline" size="icon">
+              <MenuIcon className="h-4 w-4" />
+            </Button>
+          </DrawerTrigger>
+          <DrawerContent className="h-full w-80 fixed bottom-0 left-0 right-auto mt-0">
+            <DrawerHeader>
+              <DrawerTitle>Database Tables</DrawerTitle>
+              <DrawerDescription>
+                Click a table to focus on it in the schema viewer
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="overflow-y-auto flex-1 px-4">
+              <TableList
+                onTableSelect={handleTableClick}
+                selectedTable={selectedTable}
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+    </>
+  );
+}
 
 export default function SchemaCanvas({
   selectedTable,
@@ -171,6 +282,8 @@ export default function SchemaCanvas({
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  const nodeTypes = useMemo(() => ({ table: TableNode }), []);
 
   // Generate nodes and edges from schema
   const { initialNodes, initialEdges } = useMemo(() => {
@@ -199,17 +312,19 @@ export default function SchemaCanvas({
         generatedEdges.push({
           id: `${table.name}-${fk.columnName}-${fk.referencedTable}`,
           source: table.name,
+          sourceHandle: "source",
           target: fk.referencedTable,
-          label: fk.columnName,
+          targetHandle: "target",
           type: "smoothstep",
           animated: false,
+          style: {
+            stroke: "#555555",
+            strokeWidth: 1.5,
+            strokeOpacity: 0.5,
+          },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: "hsl(var(--muted-foreground))",
-          },
-          style: {
-            stroke: "hsl(var(--muted-foreground))",
-            strokeWidth: 1.5,
+            color: "#555555",
           },
         });
       });
@@ -229,7 +344,7 @@ export default function SchemaCanvas({
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
-  // Update node selection state
+  // Update node and edge selection state
   useEffect(() => {
     if (!selectedTable) {
       setNodes((nds) =>
@@ -238,27 +353,52 @@ export default function SchemaCanvas({
           data: { ...node.data, isSelected: false, isConnected: false },
         }))
       );
+      setEdges((eds) =>
+        eds.map((edge) => ({
+          ...edge,
+          style: {
+            stroke: "#555555",
+            strokeWidth: 1.5,
+            strokeOpacity: 0.5,
+          },
+          animated: false,
+        }))
+      );
       return;
     }
 
-    const connectedEdges = edges.filter(
-      (edge) => edge.source === selectedTable || edge.target === selectedTable
-    );
-    const connectedTableIds = new Set(
-      connectedEdges.flatMap((edge) => [edge.source, edge.target])
-    );
+    // Use callback form to avoid dependency on edges
+    setEdges((eds) => {
+      const connectedEdges = eds.filter(
+        (edge) => edge.source === selectedTable || edge.target === selectedTable
+      );
+      const connectedEdgeIds = new Set(connectedEdges.map((e) => e.id));
+      const connectedTableIds = new Set(
+        connectedEdges.flatMap((edge) => [edge.source, edge.target])
+      );
 
-    setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          isSelected: node.id === selectedTable,
-          isConnected: connectedTableIds.has(node.id),
-        },
-      }))
-    );
-  }, [selectedTable, edges, setNodes]);
+      // Update nodes
+      setNodes((nds) =>
+        nds.map((node) => ({
+          ...node,
+          data: {
+            ...node.data,
+            isSelected: node.id === selectedTable,
+            isConnected: connectedTableIds.has(node.id),
+          },
+        }))
+      );
+
+      // Return updated edges
+      return eds.map((edge) => ({
+        ...edge,
+        style: connectedEdgeIds.has(edge.id)
+          ? { stroke: "#6366f1", strokeWidth: 2.5, strokeOpacity: 1 }
+          : { stroke: "#555555", strokeWidth: 1.5, strokeOpacity: 0.3 },
+        animated: connectedEdgeIds.has(edge.id),
+      }));
+    });
+  }, [selectedTable, setNodes, setEdges]);
 
   const onNodeClick = useCallback(
     (_: any, node: Node) => {
@@ -291,7 +431,15 @@ export default function SchemaCanvas({
   }
 
   return (
-    <div className="w-full h-full bg-background">
+    <div
+      className="w-full h-full bg-background"
+      style={
+        {
+          "--xy-edge-stroke-default": "#555555",
+          "--xy-edge-stroke-width-default": "1.5px",
+        } as React.CSSProperties
+      }
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -302,18 +450,18 @@ export default function SchemaCanvas({
         nodeTypes={nodeTypes}
         fitView
         minZoom={0.1}
-        maxZoom={1.5}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        maxZoom={2}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
+        defaultEdgeOptions={{
+          type: "smoothstep",
+          style: { stroke: "#555555", strokeWidth: 1.5, strokeOpacity: 0.5 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#555555" },
+        }}
+        connectionLineStyle={{ stroke: "#555555", strokeWidth: 1.5 }}
       >
-        <Controls />
-        <MiniMap
-          nodeStrokeWidth={3}
-          zoomable
-          pannable
-          style={{
-            backgroundColor: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-          }}
+        <SchemaControls
+          selectedTable={selectedTable}
+          onTableSelect={onTableSelect}
         />
         <Background
           color="hsl(var(--muted-foreground))"
