@@ -9,3 +9,5 @@ SIMPLE_DEPLOY.md
 DEPLOY_VPS.md
 node_modules
 rebuild.sh
+so_far
+verify-database.sh
