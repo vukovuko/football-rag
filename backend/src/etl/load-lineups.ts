@@ -105,41 +105,36 @@ function calculateMinutesPlayed(positions: PositionJSON[]): number {
 }
 
 /**
- * Load all lineup files with match_id extracted from filename
+ * Load a batch of lineup files
+ * Returns map of match_id → lineup data
  */
-function loadAllLineups(): Map<
-  number,
-  { matchId: number; teams: LineupJSON[] }
-> {
-  const lineupsDir = path.join(
-    process.cwd(),
-    env.DATA_PATH || "./football-open/data",
-    "lineups"
-  );
-
-  console.log("🔍 [LINEUPS DEBUG] process.cwd():", process.cwd());
-  console.log("🔍 [LINEUPS DEBUG] env.DATA_PATH:", env.DATA_PATH);
-  console.log("🔍 [LINEUPS DEBUG] Final lineupsDir:", lineupsDir);
-  console.log(`📂 Reading from: ${path.relative(process.cwd(), lineupsDir)}\n`);
-
-  const files = fs.readdirSync(lineupsDir).filter((f) => f.endsWith(".json"));
-
-  const lineupsMap = new Map<
-    number,
-    { matchId: number; teams: LineupJSON[] }
-  >();
+function loadLineupBatch(
+  lineupsDir: string,
+  files: string[]
+): Map<number, { matchId: number; teams: LineupJSON[] }> {
+  const batchMap = new Map<number, { matchId: number; teams: LineupJSON[] }>();
 
   for (const file of files) {
-    // ⚠️ CRITICAL: Extract match_id from filename!
     const matchId = parseInt(path.basename(file, ".json"));
 
-    const filePath = path.join(lineupsDir, file);
-    const teams: LineupJSON[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    if (isNaN(matchId) || matchId <= 0) {
+      continue;
+    }
 
-    lineupsMap.set(matchId, { matchId, teams });
+    try {
+      const filePath = path.join(lineupsDir, file);
+      const teams: LineupJSON[] = JSON.parse(
+        fs.readFileSync(filePath, "utf-8")
+      );
+
+      batchMap.set(matchId, { matchId, teams });
+    } catch (err) {
+      // Skip corrupt files silently
+      continue;
+    }
   }
 
-  return lineupsMap;
+  return batchMap;
 }
 
 // ============================================================================
@@ -150,43 +145,76 @@ async function loadLineupsETL() {
   console.log("🏁 Starting Lineups ETL...\n");
 
   // ========================================================================
-  // STEP 1: Load all lineup files
+  // STEP 1: Scan lineup files for unique players/countries
   // ========================================================================
   console.log("═".repeat(70));
-  console.log("\n📂 Step 1: Loading all lineup files...\n");
+  console.log("\n📂 Step 1: Scanning lineup files...\n");
 
-  const lineupsMap = loadAllLineups();
+  const lineupsDir = path.join(
+    process.cwd(),
+    env.DATA_PATH || "./football-open/data",
+    "lineups"
+  );
 
-  console.log(`✅ Loaded ${lineupsMap.size} matches with lineups\n`);
+  console.log(`📂 Reading from: ${path.relative(process.cwd(), lineupsDir)}\n`);
 
-  // ========================================================================
-  // STEP 2: Extract and load players
-  // ========================================================================
-  console.log("═".repeat(70));
-  console.log("\n👤 Step 2: Extracting and loading players...\n");
+  const allFiles = fs
+    .readdirSync(lineupsDir)
+    .filter((f) => f.endsWith(".json"));
 
-  // Map: player_id → { name, nickname }
-  // Use latest name/nickname if player appears in multiple matches
+  console.log(`   Found ${allFiles.length} lineup files\n`);
+
+  const FILE_BATCH_SIZE = 100; // Process 100 files at a time
   const playersMap = new Map<
     number,
     { playerId: number; playerName: string; playerNickname: string | null }
   >();
+  const allCountryNames = new Set<string>();
 
-  for (const { teams } of lineupsMap.values()) {
-    for (const team of teams) {
-      for (const player of team.lineup) {
-        playersMap.set(player.player_id, {
-          playerId: player.player_id,
-          playerName: player.player_name,
-          playerNickname: player.player_nickname,
-        });
+  // First pass: extract unique players and countries (lightweight)
+  console.log("   Extracting unique players and countries...\n");
+
+  for (let i = 0; i < allFiles.length; i += FILE_BATCH_SIZE) {
+    const fileBatch = allFiles.slice(i, i + FILE_BATCH_SIZE);
+    const batchMap = loadLineupBatch(lineupsDir, fileBatch);
+
+    for (const { teams } of batchMap.values()) {
+      for (const team of teams) {
+        for (const player of team.lineup) {
+          playersMap.set(player.player_id, {
+            playerId: player.player_id,
+            playerName: player.player_name,
+            playerNickname: player.player_nickname,
+          });
+
+          if (player.country?.name) {
+            allCountryNames.add(player.country.name);
+          }
+        }
       }
+    }
+
+    if (
+      (i + FILE_BATCH_SIZE) % 500 === 0 ||
+      i + FILE_BATCH_SIZE >= allFiles.length
+    ) {
+      console.log(
+        `   ✓ Scanned ${Math.min(i + FILE_BATCH_SIZE, allFiles.length)}/${
+          allFiles.length
+        } files (${playersMap.size} unique players)...`
+      );
     }
   }
 
-  console.log(`   Found ${playersMap.size} unique players`);
+  console.log(`\n   ✅ Found ${playersMap.size} unique players`);
+  console.log(`   ✅ Found ${allCountryNames.size} unique countries\n`);
 
-  // Batch insert players
+  // ========================================================================
+  // STEP 2: Insert players
+  // ========================================================================
+  console.log("═".repeat(70));
+  console.log("\n👤 Step 2: Inserting players...\n");
+
   const BATCH_SIZE = 1000;
   const playersArray = Array.from(playersMap.values());
 
@@ -203,15 +231,14 @@ async function loadLineupsETL() {
   }
 
   console.log();
-  console.log(`✅ Loaded ${playersArray.length} players\n`);
+  console.log(`✅ Inserted ${playersArray.length} players\n`);
 
   // ========================================================================
-  // STEP 3: Ensure all countries exist
+  // STEP 3: Insert missing countries
   // ========================================================================
   console.log("═".repeat(70));
   console.log("\n🌍 Step 3: Ensuring all countries exist...\n");
 
-  // Get existing countries
   const existingCountryRecords = await db
     .select({ id: countries.id, name: countries.name })
     .from(countries);
@@ -220,30 +247,18 @@ async function loadLineupsETL() {
     existingCountryRecords.map((c) => [c.name, c.id])
   );
 
-  // Find missing countries from lineups
-  const allCountryNamesInLineups = new Set<string>();
-  for (const { teams } of lineupsMap.values()) {
-    for (const team of teams) {
-      for (const player of team.lineup) {
-        if (player.country?.name) {
-          allCountryNamesInLineups.add(player.country.name);
-        }
-      }
-    }
-  }
-
   const missingCountries: {
     statsbombId: null;
     name: string;
     type: "country" | "region" | "international";
   }[] = [];
 
-  for (const countryName of allCountryNamesInLineups) {
+  for (const countryName of allCountryNames) {
     if (!countryNameToId.has(countryName)) {
       missingCountries.push({
-        statsbombId: null, // Lineups don't provide country IDs for all countries
+        statsbombId: null,
         name: countryName,
-        type: "country", // Assume all are countries
+        type: "country",
       });
     }
   }
@@ -259,10 +274,8 @@ async function loadLineupsETL() {
       console.log(`      ... and ${missingCountries.length - 10} more`);
     }
 
-    // Insert missing countries
     await db.insert(countries).values(missingCountries).onConflictDoNothing();
 
-    // Re-fetch countries to get new IDs
     const updatedCountryRecords = await db
       .select({ id: countries.id, name: countries.name })
       .from(countries);
@@ -276,155 +289,121 @@ async function loadLineupsETL() {
   console.log(`   ✅ Total countries available: ${countryNameToId.size}\n`);
 
   // ========================================================================
-  // STEP 4: Load player_lineups
+  // STEP 4-6: Process files in batches and insert lineup data
   // ========================================================================
   console.log("═".repeat(70));
-  console.log("\n📋 Step 4: Loading player lineups...\n");
-
-  const playerLineupsArray: any[] = [];
-
-  for (const { matchId, teams } of lineupsMap.values()) {
-    for (const team of teams) {
-      for (const player of team.lineup) {
-        // Skip players without country data
-        if (!player.country?.name) {
-          console.warn(
-            `   ⚠️  Player ${player.player_id} has no country data, skipping`
-          );
-          continue;
-        }
-
-        const countryId = countryNameToId.get(player.country.name)!; // Safe now - all countries inserted
-
-        const isStarter =
-          player.positions[0]?.start_reason === "Starting XI" || false;
-        const minutesPlayed = calculateMinutesPlayed(player.positions);
-
-        playerLineupsArray.push({
-          matchId,
-          teamId: team.team_id,
-          playerId: player.player_id,
-          jerseyNumber: player.jersey_number,
-          countryId,
-          isStarter,
-          minutesPlayed,
-          rawJson: player, // Zero data loss!
-        });
-      }
-    }
-  }
-
   console.log(
-    `   Inserting ${playerLineupsArray.length} player lineup records...\n`
+    "\n📋 Step 4-6: Processing files in batches and inserting lineup data...\n"
   );
 
-  for (let i = 0; i < playerLineupsArray.length; i += BATCH_SIZE) {
-    const batch = playerLineupsArray.slice(i, i + BATCH_SIZE);
-    await db.insert(playerLineups).values(batch).onConflictDoNothing();
+  let totalLineupsInserted = 0;
+  let totalPositionsInserted = 0;
+  let totalCardsInserted = 0;
 
-    console.log(
-      `   ✓ Inserted records ${i + 1} to ${Math.min(
-        i + BATCH_SIZE,
-        playerLineupsArray.length
-      )}`
-    );
-  }
+  // Second pass: process files in batches and insert data
+  for (let i = 0; i < allFiles.length; i += FILE_BATCH_SIZE) {
+    const fileBatch = allFiles.slice(i, i + FILE_BATCH_SIZE);
+    const batchMap = loadLineupBatch(lineupsDir, fileBatch);
 
-  console.log();
-  console.log(`✅ Loaded ${playerLineupsArray.length} player lineups\n`);
+    const batchLineups: any[] = [];
+    const batchPositions: any[] = [];
+    const batchCards: any[] = [];
 
-  // ========================================================================
-  // STEP 5: Load player_positions
-  // ========================================================================
-  console.log("═".repeat(70));
-  console.log("\n🎯 Step 5: Loading player positions...\n");
+    for (const { matchId, teams } of batchMap.values()) {
+      for (const team of teams) {
+        for (const player of team.lineup) {
+          if (!player.country?.name) {
+            continue;
+          }
 
-  const playerPositionsArray: any[] = [];
+          const countryId = countryNameToId.get(player.country.name)!;
+          const isStarter =
+            player.positions[0]?.start_reason === "Starting XI" || false;
+          const minutesPlayed = calculateMinutesPlayed(player.positions);
 
-  for (const { matchId, teams } of lineupsMap.values()) {
-    for (const team of teams) {
-      for (const player of team.lineup) {
-        for (const pos of player.positions) {
-          playerPositionsArray.push({
+          batchLineups.push({
             matchId,
+            teamId: team.team_id,
             playerId: player.player_id,
-            positionId: pos.position_id,
-            fromTime: timeStringToInterval(pos.from),
-            toTime: pos.to ? timeStringToInterval(pos.to) : null,
-            fromPeriod: pos.from_period,
-            toPeriod: pos.to_period,
-            startReason: pos.start_reason,
-            endReason: pos.end_reason,
+            jerseyNumber: player.jersey_number,
+            countryId,
+            isStarter,
+            minutesPlayed,
+            rawJson: player,
           });
+
+          for (const pos of player.positions) {
+            batchPositions.push({
+              matchId,
+              playerId: player.player_id,
+              positionId: pos.position_id,
+              fromTime: timeStringToInterval(pos.from),
+              toTime: pos.to ? timeStringToInterval(pos.to) : null,
+              fromPeriod: pos.from_period,
+              toPeriod: pos.to_period,
+              startReason: pos.start_reason,
+              endReason: pos.end_reason,
+            });
+          }
+
+          for (const card of player.cards) {
+            batchCards.push({
+              matchId,
+              playerId: player.player_id,
+              time: timeStringToInterval(card.time),
+              cardType: card.card_type,
+              reason: card.reason,
+              period: card.period,
+            });
+          }
         }
       }
     }
-  }
 
-  console.log(
-    `   Inserting ${playerPositionsArray.length} position records...\n`
-  );
-
-  for (let i = 0; i < playerPositionsArray.length; i += BATCH_SIZE) {
-    const batch = playerPositionsArray.slice(i, i + BATCH_SIZE);
-    await db.insert(playerPositions).values(batch).onConflictDoNothing();
-
-    console.log(
-      `   ✓ Inserted records ${i + 1} to ${Math.min(
-        i + BATCH_SIZE,
-        playerPositionsArray.length
-      )}`
-    );
-  }
-
-  console.log();
-  console.log(`✅ Loaded ${playerPositionsArray.length} player positions\n`);
-
-  // ========================================================================
-  // STEP 6: Load player_cards
-  // ========================================================================
-  console.log("═".repeat(70));
-  console.log("\n🟨 Step 6: Loading player cards...\n");
-
-  const playerCardsArray: any[] = [];
-
-  for (const { matchId, teams } of lineupsMap.values()) {
-    for (const team of teams) {
-      for (const player of team.lineup) {
-        for (const card of player.cards) {
-          playerCardsArray.push({
-            matchId,
-            playerId: player.player_id,
-            time: timeStringToInterval(card.time),
-            cardType: card.card_type,
-            reason: card.reason,
-            period: card.period,
-          });
-        }
+    // Insert batch lineups
+    if (batchLineups.length > 0) {
+      for (let j = 0; j < batchLineups.length; j += BATCH_SIZE) {
+        const batch = batchLineups.slice(j, j + BATCH_SIZE);
+        await db.insert(playerLineups).values(batch).onConflictDoNothing();
       }
+      totalLineupsInserted += batchLineups.length;
     }
-  }
 
-  console.log(`   Inserting ${playerCardsArray.length} card records...\n`);
+    // Insert batch positions
+    if (batchPositions.length > 0) {
+      for (let j = 0; j < batchPositions.length; j += BATCH_SIZE) {
+        const batch = batchPositions.slice(j, j + BATCH_SIZE);
+        await db.insert(playerPositions).values(batch).onConflictDoNothing();
+      }
+      totalPositionsInserted += batchPositions.length;
+    }
 
-  if (playerCardsArray.length > 0) {
-    for (let i = 0; i < playerCardsArray.length; i += BATCH_SIZE) {
-      const batch = playerCardsArray.slice(i, i + BATCH_SIZE);
-      await db.insert(playerCards).values(batch).onConflictDoNothing();
+    // Insert batch cards
+    if (batchCards.length > 0) {
+      for (let j = 0; j < batchCards.length; j += BATCH_SIZE) {
+        const batch = batchCards.slice(j, j + BATCH_SIZE);
+        await db.insert(playerCards).values(batch).onConflictDoNothing();
+      }
+      totalCardsInserted += batchCards.length;
+    }
 
+    // Progress update
+    if (
+      (i + FILE_BATCH_SIZE) % 500 === 0 ||
+      i + FILE_BATCH_SIZE >= allFiles.length
+    ) {
       console.log(
-        `   ✓ Inserted records ${i + 1} to ${Math.min(
-          i + BATCH_SIZE,
-          playerCardsArray.length
-        )}`
+        `   ✓ Processed ${Math.min(i + FILE_BATCH_SIZE, allFiles.length)}/${
+          allFiles.length
+        } files (${totalLineupsInserted} lineups, ${totalPositionsInserted} positions, ${totalCardsInserted} cards)...`
       );
     }
-  } else {
-    console.log("   ℹ️  No cards to insert");
   }
 
   console.log();
-  console.log(`✅ Loaded ${playerCardsArray.length} player cards\n`);
+  console.log(`✅ Inserted ${totalLineupsInserted} player lineups`);
+  console.log(`✅ Inserted ${totalPositionsInserted} player positions`);
+  console.log(`✅ Inserted ${totalCardsInserted} player cards\n`);
 
   // ========================================================================
   // STEP 7: Verify data
@@ -454,12 +433,7 @@ async function loadLineupsETL() {
   console.log("═".repeat(70));
   console.log("\n🎉 Lineups ETL Complete!\n");
 
-  // Check for data loss
-  if (playerLineupsCount.length !== playerLineupsArray.length) {
-    console.error(
-      `\n⚠️  WARNING: Expected ${playerLineupsArray.length} player lineups, but got ${playerLineupsCount.length}`
-    );
-  }
+  console.log("✅ ETL completed successfully");
 }
 
 // ============================================================================

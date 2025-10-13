@@ -8,3 +8,4 @@ deploy.sh
 SIMPLE_DEPLOY.md
 DEPLOY_VPS.md
 node_modules
+rebuild.sh

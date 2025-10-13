@@ -11,10 +11,6 @@ const DATA_PATH = path.join(
   "three-sixty"
 );
 
-console.log("🔍 [360 DEBUG] process.cwd():", process.cwd());
-console.log("🔍 [360 DEBUG] env.DATA_PATH:", env.DATA_PATH);
-console.log("🔍 [360 DEBUG] Final DATA_PATH:", DATA_PATH);
-
 // ============================================================================
 // TypeScript Interfaces (matching JSON structure)
 // ============================================================================
@@ -69,34 +65,21 @@ function calculateDistance(
 }
 
 /**
- * Load all 360 files and extract match_id from filename
+ * Load and process a batch of 360 files
+ * Returns match data that was successfully loaded
  */
-function loadAll360Files(): Map<
-  number,
-  { matchId: number; frames: ThreeSixtyFrame[] }
-> {
-  const files = fs
-    .readdirSync(DATA_PATH)
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => path.join(DATA_PATH, f));
-
-  console.log(`📂 Found ${files.length} 360 files\n`);
-
-  const framesMap = new Map<
+function loadFileBatch(
+  filePaths: string[]
+): Map<number, { matchId: number; frames: ThreeSixtyFrame[] }> {
+  const batchMap = new Map<
     number,
     { matchId: number; frames: ThreeSixtyFrame[] }
   >();
 
-  let skippedFiles = 0;
-  let totalFrames = 0;
-
-  for (const filePath of files) {
-    // CRITICAL: Extract match_id from filename!
+  for (const filePath of filePaths) {
     const matchId = parseInt(path.basename(filePath, ".json"));
 
     if (isNaN(matchId) || matchId <= 0) {
-      console.error(`   ❌ Invalid filename: ${path.basename(filePath)}`);
-      skippedFiles++;
       continue;
     }
 
@@ -106,48 +89,17 @@ function loadAll360Files(): Map<
       );
 
       if (!Array.isArray(rawJson)) {
-        console.error(
-          `   ❌ ${path.basename(filePath)} is not an array, skipping`
-        );
-        skippedFiles++;
         continue;
       }
 
-      framesMap.set(matchId, { matchId, frames: rawJson });
-      totalFrames += rawJson.length;
-
-      if (framesMap.size % 50 === 0) {
-        console.log(
-          `   ✓ Loaded ${
-            framesMap.size
-          } files (${totalFrames.toLocaleString()} frames)...`
-        );
-      }
+      batchMap.set(matchId, { matchId, frames: rawJson });
     } catch (err) {
-      console.error(
-        `   ❌ Failed to parse ${path.basename(filePath)}: ${
-          (err as Error).message
-        }`
-      );
-      skippedFiles++;
+      // Skip corrupt files silently (will be logged in main function)
+      continue;
     }
   }
 
-  console.log(
-    `   ✅ Successfully loaded ${
-      framesMap.size
-    } matches (${totalFrames.toLocaleString()} frames)`
-  );
-  if (skippedFiles > 0) {
-    console.log(
-      `   ⚠️  Skipped ${skippedFiles} corrupt/invalid files (${(
-        (skippedFiles / files.length) *
-        100
-      ).toFixed(1)}%)`
-    );
-  }
-
-  return framesMap;
+  return batchMap;
 }
 
 // ============================================================================
@@ -158,154 +110,161 @@ async function load360ETL() {
   console.log("🏁 Starting 360 Frames ETL...\n");
 
   // ========================================================================
-  // STEP 1: Load all 360 files
+  // STEP 1: Get list of 360 files
   // ========================================================================
   console.log("═".repeat(70));
-  console.log("\n📂 Step 1: Loading all 360 files...\n");
+  console.log("\n📂 Step 1: Scanning 360 files...\n");
 
-  const framesMap = loadAll360Files();
+  const allFiles = fs
+    .readdirSync(DATA_PATH)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => path.join(DATA_PATH, f));
 
-  console.log();
-  console.log(`✅ Loaded ${framesMap.size} matches\n`);
+  console.log(`   Found ${allFiles.length} 360 files\n`);
 
   // ========================================================================
-  // STEP 2: Verify matches exist in database
+  // STEP 2: Query existing matches from database (once)
   // ========================================================================
   console.log("═".repeat(70));
-  console.log("\n🔍 Step 2: Verifying matches exist in database...\n");
+  console.log("\n🔍 Step 2: Querying existing matches from database...\n");
 
-  const matchIds = Array.from(framesMap.keys());
-  console.log(`   Checking ${matchIds.length} match IDs...`);
-
-  // Query all matches at once
   const existingMatchesResult = await db
     .select({ matchId: matches.matchId })
     .from(matches);
 
   const existingMatchIds = new Set(existingMatchesResult.map((m) => m.matchId));
 
-  const missingMatches = matchIds.filter((id) => !existingMatchIds.has(id));
-
-  console.log(`   ✅ Found ${existingMatchIds.size} matches in database`);
-  if (missingMatches.length > 0) {
-    console.warn(
-      `   ⚠️  ${missingMatches.length} matches not in database - will skip`
-    );
-    console.warn(`      Sample: ${missingMatches.slice(0, 5).join(", ")}...`);
-  }
-
-  // Filter to only existing matches
-  for (const matchId of missingMatches) {
-    framesMap.delete(matchId);
-  }
-
-  console.log();
-  console.log(`✅ Processing ${framesMap.size} matches\n`);
+  console.log(`   ✅ Found ${existingMatchIds.size} matches in database\n`);
 
   // ========================================================================
-  // STEP 3: Insert frames and players
+  // STEP 3: Process files in batches and insert data
   // ========================================================================
   console.log("═".repeat(70));
-  console.log("\n📊 Step 3: Inserting 360 frames and players...\n");
+  console.log(
+    "\n📊 Step 3: Processing files in batches and inserting data...\n"
+  );
 
   let totalFramesInserted = 0;
   let totalPlayersInserted = 0;
-  let matchesProcessed = 0;
+  let totalFilesProcessed = 0;
+  let totalSkipped = 0;
 
-  const FRAME_BATCH_SIZE = 100; // Reduced from 500 to avoid parameter limit (100 frames × 15 players × 8 fields = 12k params)
+  const FILE_BATCH_SIZE = 50; // Process 50 files at a time to limit memory
+  const FRAME_BATCH_SIZE = 100; // Insert 100 frames at a time
 
-  for (const { matchId, frames } of framesMap.values()) {
-    try {
-      // Process frames in batches
-      for (let i = 0; i < frames.length; i += FRAME_BATCH_SIZE) {
-        const frameBatch = frames.slice(i, i + FRAME_BATCH_SIZE);
+  // Process files in batches
+  for (let i = 0; i < allFiles.length; i += FILE_BATCH_SIZE) {
+    const fileBatch = allFiles.slice(i, i + FILE_BATCH_SIZE);
 
-        // Prepare frame data
-        const frameData = frameBatch.map((frame) => {
-          const areaSize = calculateVisibleAreaSize(frame.visible_area);
-          return {
-            matchId,
-            eventUuid: frame.event_uuid,
-            visibleArea: frame.visible_area,
-            playerCount: frame.freeze_frame.length,
-            visibleAreaSize: areaSize !== null ? areaSize.toString() : null,
-            rawJson: frame,
-          };
-        });
+    // Load this batch of files
+    const batchMap = loadFileBatch(fileBatch);
 
-        // Insert frames
-        const insertedFrames = await db
-          .insert(threeSixtyFrames)
-          .values(frameData)
-          .onConflictDoNothing()
-          .returning({
-            id: threeSixtyFrames.id,
-            eventUuid: threeSixtyFrames.eventUuid,
+    // Process each match in the batch
+    for (const { matchId, frames } of batchMap.values()) {
+      // Skip if match not in database
+      if (!existingMatchIds.has(matchId)) {
+        totalSkipped++;
+        continue;
+      }
+
+      try {
+        // Process frames in sub-batches
+        for (let j = 0; j < frames.length; j += FRAME_BATCH_SIZE) {
+          const frameBatch = frames.slice(j, j + FRAME_BATCH_SIZE);
+
+          // Prepare frame data
+          const frameData = frameBatch.map((frame) => {
+            const areaSize = calculateVisibleAreaSize(frame.visible_area);
+            return {
+              matchId,
+              eventUuid: frame.event_uuid,
+              visibleArea: frame.visible_area,
+              playerCount: frame.freeze_frame.length,
+              visibleAreaSize: areaSize !== null ? areaSize.toString() : null,
+              rawJson: frame,
+            };
           });
 
-        // Create frame_id map
-        const frameIdMap = new Map(
-          insertedFrames.map((f, idx) => [frameBatch[idx].event_uuid, f.id])
-        );
-
-        // Prepare player data
-        const allPlayers: any[] = [];
-
-        for (const frame of frameBatch) {
-          const frameId = frameIdMap.get(frame.event_uuid);
-          if (!frameId) continue; // Frame was duplicate, skip
-
-          // Find actor for distance calculations
-          const actor = frame.freeze_frame.find((p) => p.actor);
-
-          for (const player of frame.freeze_frame) {
-            const distanceToActor = actor
-              ? calculateDistance(
-                  player.location[0],
-                  player.location[1],
-                  actor.location[0],
-                  actor.location[1]
-                )
-              : null;
-
-            allPlayers.push({
-              frameId,
-              teammate: player.teammate,
-              actor: player.actor,
-              keeper: player.keeper,
-              locationX: player.location[0],
-              locationY: player.location[1],
-              distanceToActor,
-              inVisibleArea: true, // TODO: Implement point-in-polygon check
+          // Insert frames
+          const insertedFrames = await db
+            .insert(threeSixtyFrames)
+            .values(frameData)
+            .onConflictDoNothing()
+            .returning({
+              id: threeSixtyFrames.id,
+              eventUuid: threeSixtyFrames.eventUuid,
             });
+
+          // Create frame_id map
+          const frameIdMap = new Map(
+            insertedFrames.map((f, idx) => [frameBatch[idx].event_uuid, f.id])
+          );
+
+          // Prepare player data
+          const allPlayers: any[] = [];
+
+          for (const frame of frameBatch) {
+            const frameId = frameIdMap.get(frame.event_uuid);
+            if (!frameId) continue;
+
+            const actor = frame.freeze_frame.find((p) => p.actor);
+
+            for (const player of frame.freeze_frame) {
+              const distanceToActor = actor
+                ? calculateDistance(
+                    player.location[0],
+                    player.location[1],
+                    actor.location[0],
+                    actor.location[1]
+                  )
+                : null;
+
+              allPlayers.push({
+                frameId,
+                teammate: player.teammate,
+                actor: player.actor,
+                keeper: player.keeper,
+                locationX: player.location[0],
+                locationY: player.location[1],
+                distanceToActor,
+                inVisibleArea: true,
+              });
+            }
           }
+
+          // Insert players
+          if (allPlayers.length > 0) {
+            await db
+              .insert(threeSixtyPlayers)
+              .values(allPlayers)
+              .onConflictDoNothing();
+            totalPlayersInserted += allPlayers.length;
+          }
+
+          totalFramesInserted += insertedFrames.length;
         }
 
-        // Insert players
-        if (allPlayers.length > 0) {
-          await db
-            .insert(threeSixtyPlayers)
-            .values(allPlayers)
-            .onConflictDoNothing();
-          totalPlayersInserted += allPlayers.length;
-        }
-
-        totalFramesInserted += insertedFrames.length;
-      }
-
-      matchesProcessed++;
-      if (matchesProcessed % 50 === 0) {
-        console.log(
-          `   ✓ Processed ${matchesProcessed}/${
-            framesMap.size
-          } matches (${totalFramesInserted.toLocaleString()} frames, ${totalPlayersInserted.toLocaleString()} players)...`
+        totalFilesProcessed++;
+      } catch (err) {
+        console.error(
+          `   ❌ Failed to process match ${matchId}: ${(err as Error).message}`
         );
+        totalSkipped++;
       }
-    } catch (err) {
-      console.error(
-        `   ❌ Failed to process match ${matchId}: ${(err as Error).message}`
-      );
     }
+
+    // Progress update every batch
+    console.log(
+      `   ✓ Processed ${Math.min(i + FILE_BATCH_SIZE, allFiles.length)}/${
+        allFiles.length
+      } files (${totalFramesInserted.toLocaleString()} frames, ${totalPlayersInserted.toLocaleString()} players)...`
+    );
+  }
+
+  if (totalSkipped > 0) {
+    console.log(
+      `   ⚠️  Skipped ${totalSkipped} files (corrupt or match not in database)`
+    );
   }
 
   console.log();

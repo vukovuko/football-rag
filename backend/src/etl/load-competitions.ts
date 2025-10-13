@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { sql } from "drizzle-orm";
 import { env } from "../../env.ts";
 import { db } from "../db/index.ts";
 import { countries, competitions, seasons } from "../db/index.ts";
@@ -193,13 +194,15 @@ async function loadCompetitions() {
 
   // Step 5: Verification
   console.log("✅ Step 5: Verifying data...");
-  const countryCount = await db.select().from(countries);
-  const competitionCount = await db.select().from(competitions);
-  const seasonCount = await db.select().from(seasons);
+  const [countryResult, competitionResult, seasonResult] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(countries),
+    db.select({ count: sql<number>`count(*)::int` }).from(competitions),
+    db.select({ count: sql<number>`count(*)::int` }).from(seasons),
+  ]);
 
-  console.log(`   📊 Countries: ${countryCount.length}`);
-  console.log(`   📊 Competitions: ${competitionCount.length}`);
-  console.log(`   📊 Seasons: ${seasonCount.length}\n`);
+  console.log(`   📊 Countries: ${countryResult[0].count}`);
+  console.log(`   📊 Competitions: ${competitionResult[0].count}`);
+  console.log(`   📊 Seasons: ${seasonResult[0].count}\n`);
 
   console.log("🎉 Competitions ETL Complete!\n");
 }
