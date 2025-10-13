@@ -12,7 +12,7 @@ services:
       - "127.0.0.1:54321:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
-    restart: no
+    restart: "no"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U football_user -d football_data"]
       interval: 10s
@@ -33,7 +33,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/open-data:/app/football-open:ro
-    restart: no
+    restart: "no"
 
   frontend:
     build:
@@ -46,7 +46,7 @@ services:
       - "127.0.0.1:6001:80"
     depends_on:
       - backend
-    restart: no
+    restart: "no"
 
 volumes:
   db-data:
