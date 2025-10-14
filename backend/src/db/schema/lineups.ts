@@ -11,6 +11,7 @@ import {
   decimal,
   interval,
   pgEnum,
+  index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { matches } from "./matches.ts";
@@ -136,8 +137,11 @@ export const playerLineups = pgTable(
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
-    // UNIQUE constraint: one entry per player per match
     uniquePlayerMatch: sql`UNIQUE (${table.matchId}, ${table.playerId})`,
+    matchIdx: index("idx_player_lineups_match").on(table.matchId),
+    playerIdx: index("idx_player_lineups_player").on(table.playerId),
+    teamIdx: index("idx_player_lineups_team").on(table.teamId),
+    countryIdx: index("idx_player_lineups_country").on(table.countryId),
   })
 );
 
@@ -151,30 +155,38 @@ export const playerLineups = pgTable(
  * - Tactical shift detection
  * - Link to events: "What position was player X in when they scored?"
  */
-export const playerPositions = pgTable("player_positions", {
-  id: serial("id").primaryKey(),
-  matchId: integer("match_id")
-    .notNull()
-    .references(() => matches.matchId),
-  playerId: integer("player_id")
-    .notNull()
-    .references(() => players.playerId),
-  positionId: integer("position_id")
-    .notNull()
-    .references(() => positions.id),
+export const playerPositions = pgTable(
+  "player_positions",
+  {
+    id: serial("id").primaryKey(),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.matchId),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.playerId),
+    positionId: integer("position_id")
+      .notNull()
+      .references(() => positions.id),
 
-  // Timing
-  fromTime: interval("from_time").notNull(), // e.g., '00:00:00'
-  toTime: interval("to_time"), // NULL = final whistle
-  fromPeriod: smallint("from_period").notNull(), // 1-5
-  toPeriod: smallint("to_period"), // NULL = final whistle
+    // Timing
+    fromTime: interval("from_time").notNull(), // e.g., '00:00:00'
+    toTime: interval("to_time"), // NULL = final whistle
+    fromPeriod: smallint("from_period").notNull(), // 1-5
+    toPeriod: smallint("to_period"), // NULL = final whistle
 
-  // Reasons
-  startReason: varchar("start_reason", { length: 100 }).notNull(),
-  endReason: varchar("end_reason", { length: 100 }).notNull(),
+    // Reasons
+    startReason: varchar("start_reason", { length: 100 }).notNull(),
+    endReason: varchar("end_reason", { length: 100 }).notNull(),
 
-  createdAt: timestamp("created_at").defaultNow(),
-});
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    matchIdx: index("idx_player_positions_match").on(table.matchId),
+    playerIdx: index("idx_player_positions_player").on(table.playerId),
+    positionIdx: index("idx_player_positions_position").on(table.positionId),
+  })
+);
 
 /**
  * Player cards - yellow and red cards received during matches
@@ -184,26 +196,28 @@ export const playerPositions = pgTable("player_positions", {
  * - Card timing analysis (early/late fouls)
  * - Link to events: "What event triggered this card?"
  */
-export const playerCards = pgTable("player_cards", {
-  id: serial("id").primaryKey(),
-  matchId: integer("match_id")
-    .notNull()
-    .references(() => matches.matchId),
-  playerId: integer("player_id")
-    .notNull()
-    .references(() => players.playerId),
+export const playerCards = pgTable(
+  "player_cards",
+  {
+    id: serial("id").primaryKey(),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.matchId),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.playerId),
 
-  // Card details
-  time: interval("time").notNull(), // e.g., '78:23:00'
-  cardType: cardTypeEnum("card_type").notNull(),
-  reason: varchar("reason", { length: 100 }).notNull(),
-  period: smallint("period").notNull(), // 1-5
+    // Card details
+    time: interval("time").notNull(), // e.g., '78:23:00'
+    cardType: cardTypeEnum("card_type").notNull(),
+    reason: varchar("reason", { length: 100 }).notNull(),
+    period: smallint("period").notNull(), // 1-5
 
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// ============================================================================
-// INDEXES
-// ============================================================================
-
-// Note: Indexes will be added after initial migration for performance
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    matchIdx: index("idx_player_cards_match").on(table.matchId),
+    playerIdx: index("idx_player_cards_player").on(table.playerId),
+    cardTypeIdx: index("idx_player_cards_type").on(table.cardType),
+  })
+);

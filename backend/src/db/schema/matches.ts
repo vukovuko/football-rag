@@ -24,6 +24,7 @@ import {
   date,
   time,
   primaryKey as pgPrimaryKey,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { countries } from "./competitions.ts";
@@ -56,15 +57,22 @@ export const competitionStages = pgTable("competition_stages", {
  *
  * Verified: team_id is globally unique
  */
-export const teams = pgTable("teams", {
-  teamId: integer("team_id").primaryKey(),
-  teamName: text("team_name").notNull(),
-  teamGender: varchar("team_gender", { length: 10 })
-    .notNull()
-    .$type<"male" | "female">(),
-  countryId: integer("country_id").references(() => countries.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const teams = pgTable(
+  "teams",
+  {
+    teamId: integer("team_id").primaryKey(),
+    teamName: text("team_name").notNull(),
+    teamGender: varchar("team_gender", { length: 10 })
+      .notNull()
+      .$type<"male" | "female">(),
+    countryId: integer("country_id").references(() => countries.id),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    countryIdx: index("idx_teams_country").on(table.countryId),
+    genderIdx: index("idx_teams_gender").on(table.teamGender),
+  })
+);
 
 /**
  * Managers Dimension Table
@@ -76,14 +84,20 @@ export const teams = pgTable("teams", {
  * Verified: manager_id is globally unique
  * Note: 69.7% don't have nicknames, 1.3% missing DOB
  */
-export const managers = pgTable("managers", {
-  managerId: integer("manager_id").primaryKey(),
-  managerName: text("manager_name").notNull(),
-  managerNickname: text("manager_nickname"), // 69.7% null
-  dateOfBirth: date("date_of_birth"), // 1.3% null
-  countryId: integer("country_id").references(() => countries.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const managers = pgTable(
+  "managers",
+  {
+    managerId: integer("manager_id").primaryKey(),
+    managerName: text("manager_name").notNull(),
+    managerNickname: text("manager_nickname"), // 69.7% null
+    dateOfBirth: date("date_of_birth"), // 1.3% null
+    countryId: integer("country_id").references(() => countries.id),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    countryIdx: index("idx_managers_country").on(table.countryId),
+  })
+);
 
 /**
  * Stadiums Dimension Table
@@ -98,12 +112,18 @@ export const managers = pgTable("managers", {
  *       - Stadium ID 369: "MHPArena" → "Mercedes-Benz-Arena"
  * Strategy: Use latest name encountered during ETL
  */
-export const stadiums = pgTable("stadiums", {
-  stadiumId: integer("stadium_id").primaryKey(),
-  stadiumName: text("stadium_name").notNull(),
-  countryId: integer("country_id").references(() => countries.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const stadiums = pgTable(
+  "stadiums",
+  {
+    stadiumId: integer("stadium_id").primaryKey(),
+    stadiumName: text("stadium_name").notNull(),
+    countryId: integer("country_id").references(() => countries.id),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    countryIdx: index("idx_stadiums_country").on(table.countryId),
+  })
+);
 
 /**
  * Referees Dimension Table
@@ -114,12 +134,18 @@ export const stadiums = pgTable("stadiums", {
  *
  * Verified: referee_id is globally unique
  */
-export const referees = pgTable("referees", {
-  refereeId: integer("referee_id").primaryKey(),
-  refereeName: text("referee_name").notNull(),
-  countryId: integer("country_id").references(() => countries.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const referees = pgTable(
+  "referees",
+  {
+    refereeId: integer("referee_id").primaryKey(),
+    refereeName: text("referee_name").notNull(),
+    countryId: integer("country_id").references(() => countries.id),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    countryIdx: index("idx_referees_country").on(table.countryId),
+  })
+);
 
 // ============================================================================
 // MAIN MATCHES TABLE
@@ -143,67 +169,83 @@ export const referees = pgTable("referees", {
  * - last_updated_360: Only when 360 data exists
  * - data_version, shot_fidelity_version, xy_fidelity_version: Some older matches
  */
-export const matches = pgTable("matches", {
-  // Primary key
-  matchId: integer("match_id").primaryKey(),
+export const matches = pgTable(
+  "matches",
+  {
+    // Primary key
+    matchId: integer("match_id").primaryKey(),
 
-  // Foreign keys to context
-  competitionId: integer("competition_id")
-    .notNull()
-    .references(() => competitions.competitionId),
-  seasonId: integer("season_id").notNull(),
-  // Note: season_id is part of composite key in seasons table
-  // Foreign key constraint handled in migration
+    // Foreign keys to context
+    competitionId: integer("competition_id")
+      .notNull()
+      .references(() => competitions.competitionId),
+    seasonId: integer("season_id").notNull(),
+    // Note: season_id is part of composite key in seasons table
+    // Foreign key constraint handled in migration
 
-  // Match timing
-  matchDate: date("match_date").notNull(),
-  kickOff: time("kick_off"), // Nullable: some historical matches
+    // Match timing
+    matchDate: date("match_date").notNull(),
+    kickOff: time("kick_off"), // Nullable: some historical matches
 
-  // Teams and scores
-  homeTeamId: integer("home_team_id")
-    .notNull()
-    .references(() => teams.teamId),
-  awayTeamId: integer("away_team_id")
-    .notNull()
-    .references(() => teams.teamId),
-  homeScore: integer("home_score").notNull(),
-  awayScore: integer("away_score").notNull(),
+    // Teams and scores
+    homeTeamId: integer("home_team_id")
+      .notNull()
+      .references(() => teams.teamId),
+    awayTeamId: integer("away_team_id")
+      .notNull()
+      .references(() => teams.teamId),
+    homeScore: integer("home_score").notNull(),
+    awayScore: integer("away_score").notNull(),
 
-  // Tournament groups (nullable - only for tournament matches)
-  homeTeamGroup: varchar("home_team_group", { length: 20 }),
-  awayTeamGroup: varchar("away_team_group", { length: 20 }),
+    // Tournament groups (nullable - only for tournament matches)
+    homeTeamGroup: varchar("home_team_group", { length: 20 }),
+    awayTeamGroup: varchar("away_team_group", { length: 20 }),
 
-  // Match context
-  matchWeek: integer("match_week"), // Nullable: tournaments don't have weeks
-  competitionStageId: integer("competition_stage_id").references(
-    () => competitionStages.id
-  ),
+    // Match context
+    matchWeek: integer("match_week"), // Nullable: tournaments don't have weeks
+    competitionStageId: integer("competition_stage_id").references(
+      () => competitionStages.id
+    ),
 
-  // Officials and venue
-  stadiumId: integer("stadium_id").references(() => stadiums.stadiumId), // 0.3% null
-  refereeId: integer("referee_id").references(() => referees.refereeId), // 5.8% null
+    // Officials and venue
+    stadiumId: integer("stadium_id").references(() => stadiums.stadiumId), // 0.3% null
+    refereeId: integer("referee_id").references(() => referees.refereeId), // 5.8% null
 
-  // Match status
-  matchStatus: varchar("match_status", { length: 20 })
-    .notNull()
-    .default("available"),
-  matchStatus360: varchar("match_status_360", { length: 20 }),
+    // Match status
+    matchStatus: varchar("match_status", { length: 20 })
+      .notNull()
+      .default("available"),
+    matchStatus360: varchar("match_status_360", { length: 20 }),
 
-  // Update timestamps
-  lastUpdated: timestamp("last_updated", { withTimezone: true }).notNull(),
-  lastUpdated360: timestamp("last_updated_360", { withTimezone: true }),
+    // Update timestamps
+    lastUpdated: timestamp("last_updated", { withTimezone: true }).notNull(),
+    lastUpdated360: timestamp("last_updated_360", { withTimezone: true }),
 
-  // Data quality metadata
-  dataVersion: varchar("data_version", { length: 10 }),
-  shotFidelityVersion: varchar("shot_fidelity_version", { length: 10 }),
-  xyFidelityVersion: varchar("xy_fidelity_version", { length: 10 }),
+    // Data quality metadata
+    dataVersion: varchar("data_version", { length: 10 }),
+    shotFidelityVersion: varchar("shot_fidelity_version", { length: 10 }),
+    xyFidelityVersion: varchar("xy_fidelity_version", { length: 10 }),
 
-  // Raw JSON Backup (Zero Data Loss Strategy)
-  rawJson: jsonb("raw_json").notNull(),
+    // Raw JSON Backup (Zero Data Loss Strategy)
+    rawJson: jsonb("raw_json").notNull(),
 
-  // Housekeeping
-  createdAt: timestamp("created_at").defaultNow(),
-});
+    // Housekeeping
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    competitionIdx: index("idx_matches_competition").on(table.competitionId),
+    seasonIdx: index("idx_matches_season").on(
+      table.competitionId,
+      table.seasonId
+    ),
+    dateIdx: index("idx_matches_date").on(table.matchDate),
+    homeTeamIdx: index("idx_matches_home_team").on(table.homeTeamId),
+    awayTeamIdx: index("idx_matches_away_team").on(table.awayTeamId),
+    stadiumIdx: index("idx_matches_stadium").on(table.stadiumId),
+    refereeIdx: index("idx_matches_referee").on(table.refereeId),
+    stageIdx: index("idx_matches_stage").on(table.competitionStageId),
+  })
+);
 
 // ============================================================================
 // JUNCTION TABLE
@@ -239,10 +281,12 @@ export const matchManagers = pgTable(
     isHomeTeam: boolean("is_home_team").notNull(),
   },
   (table) => ({
-    // Composite primary key: all three fields needed for uniqueness
     pk: pgPrimaryKey({
       columns: [table.matchId, table.managerId, table.teamId],
     }),
+    matchIdx: index("idx_match_managers_match").on(table.matchId),
+    managerIdx: index("idx_match_managers_manager").on(table.managerId),
+    teamIdx: index("idx_match_managers_team").on(table.teamId),
   })
 );
 

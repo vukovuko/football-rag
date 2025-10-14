@@ -10,6 +10,7 @@ import {
   interval,
   smallint,
   primaryKey,
+  index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { matches, teams } from "./matches.ts";
@@ -134,64 +135,71 @@ export const fiftyFiftyOutcomes = pgTable("fifty_fifty_outcomes", {
  * CRITICAL: match_id is extracted from filename, not from JSON!
  * CRITICAL: player_id and location can be NULL (admin events)
  */
-export const events = pgTable("events", {
-  // Identity
-  id: uuid("id").primaryKey(),
-  index: integer("index").notNull(),
-  matchId: integer("match_id")
-    .notNull()
-    .references(() => matches.matchId),
+export const events = pgTable(
+  "events",
+  {
+    // Identity
+    id: uuid("id").primaryKey(),
+    index: integer("index").notNull(),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.matchId),
 
-  // Timing
-  period: smallint("period").notNull(),
-  timestamp: interval("timestamp").notNull(),
-  minute: smallint("minute").notNull(),
-  second: smallint("second").notNull(),
+    // Timing
+    period: smallint("period").notNull(),
+    timestamp: interval("timestamp").notNull(),
+    minute: smallint("minute").notNull(),
+    second: smallint("second").notNull(),
 
-  // Type & Context
-  typeId: integer("type_id")
-    .notNull()
-    .references(() => eventTypes.id),
-  possession: integer("possession").notNull(),
-  possessionTeamId: integer("possession_team_id")
-    .notNull()
-    .references(() => teams.teamId),
-  playPatternId: integer("play_pattern_id").references(() => playPatterns.id),
+    // Type & Context
+    typeId: integer("type_id")
+      .notNull()
+      .references(() => eventTypes.id),
+    possession: integer("possession").notNull(),
+    possessionTeamId: integer("possession_team_id")
+      .notNull()
+      .references(() => teams.teamId),
+    playPatternId: integer("play_pattern_id").references(() => playPatterns.id),
 
-  // Actors (NULLABLE!)
-  teamId: integer("team_id")
-    .notNull()
-    .references(() => teams.teamId),
-  playerId: integer("player_id").references(() => players.playerId), // NULLABLE
-  positionId: integer("position_id").references(() => positions.id),
+    // Actors (NULLABLE!)
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.teamId),
+    playerId: integer("player_id").references(() => players.playerId), // NULLABLE
+    positionId: integer("position_id").references(() => positions.id),
 
-  // Location (NULLABLE!)
-  locationX: decimal("location_x", { precision: 5, scale: 2 }),
-  locationY: decimal("location_y", { precision: 5, scale: 2 }),
+    // Location (NULLABLE!)
+    locationX: decimal("location_x", { precision: 5, scale: 2 }),
+    locationY: decimal("location_y", { precision: 5, scale: 2 }),
 
-  // Duration & Flags
-  duration: decimal("duration", { precision: 10, scale: 4 }),
-  underPressure: boolean("under_pressure").notNull().default(false),
-  offCamera: boolean("off_camera").notNull().default(false),
-  out: boolean("out").notNull().default(false),
-  counterpress: boolean("counterpress").notNull().default(false),
+    // Duration & Flags
+    duration: decimal("duration", { precision: 10, scale: 4 }),
+    underPressure: boolean("under_pressure").notNull().default(false),
+    offCamera: boolean("off_camera").notNull().default(false),
+    out: boolean("out").notNull().default(false),
+    counterpress: boolean("counterpress").notNull().default(false),
 
-  // Raw JSON Backup (Zero Data Loss)
-  rawJson: jsonb("raw_json").notNull(),
+    // Raw JSON Backup (Zero Data Loss)
+    rawJson: jsonb("raw_json").notNull(),
 
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Indexes for events table
-export const eventsIndexes = {
-  matchIdx: sql`CREATE INDEX IF NOT EXISTS idx_events_match ON events(match_id)`,
-  typeIdx: sql`CREATE INDEX IF NOT EXISTS idx_events_type ON events(type_id)`,
-  playerIdx: sql`CREATE INDEX IF NOT EXISTS idx_events_player ON events(player_id) WHERE player_id IS NOT NULL`,
-  teamIdx: sql`CREATE INDEX IF NOT EXISTS idx_events_team ON events(team_id)`,
-  periodMinuteIdx: sql`CREATE INDEX IF NOT EXISTS idx_events_period_minute ON events(period, minute)`,
-  possessionIdx: sql`CREATE INDEX IF NOT EXISTS idx_events_possession ON events(possession)`,
-  indexIdx: sql`CREATE INDEX IF NOT EXISTS idx_events_index ON events(match_id, index)`,
-};
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    matchIdx: index("idx_events_match").on(table.matchId),
+    typeIdx: index("idx_events_type").on(table.typeId),
+    playerIdx: index("idx_events_player").on(table.playerId),
+    teamIdx: index("idx_events_team").on(table.teamId),
+    periodMinuteIdx: index("idx_events_period_minute").on(
+      table.period,
+      table.minute
+    ),
+    possessionIdx: index("idx_events_possession").on(table.possession),
+    matchIndexIdx: index("idx_events_match_index").on(
+      table.matchId,
+      table.index
+    ),
+  })
+);
 
 // ============================================================================
 // EVENT RELATIONSHIPS (Junction Table)

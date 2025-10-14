@@ -8,6 +8,13 @@
       "when": 1760291126536,
       "tag": "0000_lively_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1760446741432,
+      "tag": "0001_bitter_smiling_tiger",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,7 @@ import {
   jsonb,
   varchar,
   primaryKey as pgPrimaryKey,
+  index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -69,21 +70,28 @@ export const countries = pgTable("countries", {
  * Stores unique competitions (La Liga, Premier League, etc.)
  * One competition can have many seasons.
  */
-export const competitions = pgTable("competitions", {
-  competitionId: integer("competition_id").primaryKey(),
-  competitionName: text("competition_name").notNull(),
-  countryId: integer("country_id").references(() => countries.id),
-  competitionGender: varchar("competition_gender", { length: 10 })
-    .notNull()
-    .$type<"male" | "female">(),
-  competitionYouth: boolean("competition_youth").notNull().default(false),
-  competitionInternational: boolean("competition_international")
-    .notNull()
-    .default(false),
-  // CRITICAL: raw_json for zero data loss (ZERO_DATA_LOSS_STRATEGY.md)
-  rawJson: jsonb("raw_json").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const competitions = pgTable(
+  "competitions",
+  {
+    competitionId: integer("competition_id").primaryKey(),
+    competitionName: text("competition_name").notNull(),
+    countryId: integer("country_id").references(() => countries.id),
+    competitionGender: varchar("competition_gender", { length: 10 })
+      .notNull()
+      .$type<"male" | "female">(),
+    competitionYouth: boolean("competition_youth").notNull().default(false),
+    competitionInternational: boolean("competition_international")
+      .notNull()
+      .default(false),
+    // CRITICAL: raw_json for zero data loss (ZERO_DATA_LOSS_STRATEGY.md)
+    rawJson: jsonb("raw_json").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    countryIdx: index("idx_competitions_country").on(table.countryId),
+    genderIdx: index("idx_competitions_gender").on(table.competitionGender),
+  })
+);
 
 // ============================================================================
 // SEASONS TABLE
@@ -118,10 +126,7 @@ export const seasons = pgTable(
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
-    // Composite primary key: (competition_id, season_id)
     pk: pgPrimaryKey({ columns: [table.competitionId, table.seasonId] }),
+    competitionIdx: index("idx_seasons_competition").on(table.competitionId),
   })
 );
-
-// TODO: Add indexes after we verify schema works
-// Source: Lines 188-193
