@@ -7,7 +7,11 @@ ETL_ORDER.md
 check-data.js
 EVENTS_ETL_PLAN.md
 SUCCESS_SUMMARY.md
-football-open
+football-open/data
+football-open/doc
+football-open/LICENSE.pdf
+football-open/README.md
+!football-open/img
 
 # Environment variables
 .env
