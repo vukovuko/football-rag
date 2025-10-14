@@ -122,12 +122,10 @@ export async function getSchemaContext(): Promise<string> {
   cachedSchema = formatSchemaForAI(tables);
   lastFetchTime = now;
 
-  console.log("Schema cache refreshed");
   return cachedSchema;
 }
 
 export function clearSchemaCache(): void {
   cachedSchema = null;
   lastFetchTime = null;
-  console.log("Schema cache cleared");
 }

@@ -108,7 +108,6 @@ async function executeSQL(query: string): Promise<any[]> {
 
 router.post("/chat", async (req, res) => {
   try {
-    console.log("📨 Received chat request");
     const { messages } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
@@ -118,9 +117,7 @@ router.post("/chat", async (req, res) => {
       });
     }
 
-    console.log(`💬 Processing ${messages.length} messages`);
     const schemaContext = await getSchemaContext();
-    console.log("✅ Schema context loaded");
 
     const systemPrompt = `You are a football statistics analyst with access to a StatsBomb PostgreSQL database.
 
@@ -176,7 +173,6 @@ You: "The highest scoring match was between Barcelona and Real Madrid, ending 5-
 
 Remember: Generate SQL, execute it, return natural language answer. Never expose technical details to the user.`;
 
-    console.log("🤖 Calling Google Gemini API...");
     const result = await streamText({
       model: google("gemini-2.5-flash"),
       system: systemPrompt,
@@ -195,20 +191,14 @@ Remember: Generate SQL, execute it, return natural language answer. Never expose
               ),
           }),
           execute: async ({ query }) => {
-            console.log(
-              "🔧 Tool called with query:",
-              query.substring(0, 100) + "..."
-            );
             try {
               const rows = await executeSQL(query);
-              console.log(`✅ Query returned ${rows.length} rows`);
               return {
                 success: true,
                 rowCount: rows.length,
                 data: rows,
               };
             } catch (error) {
-              console.error("❌ Query failed:", error);
               return {
                 success: false,
                 error: error instanceof Error ? error.message : "Query failed",
@@ -218,8 +208,6 @@ Remember: Generate SQL, execute it, return natural language answer. Never expose
         }),
       },
     });
-
-    console.log("📤 Streaming response to client...");
 
     // Convert the Web API Response to an Express-compatible response
     const webResponse = result.toUIMessageStreamResponse();
