@@ -203,6 +203,39 @@ router.post("/query", async (req, res) => {
       "REVOKE",
       "EXECUTE",
       "EXEC",
+      "CALL",
+      "DO",
+      "INTO", // Blocks SELECT INTO
+      "COPY",
+      "VACUUM",
+      "ANALYZE",
+      "CLUSTER",
+      "REINDEX",
+      "REFRESH",
+      "MATERIALIZED",
+      "SET",
+      "RESET",
+      "SHOW", // Config manipulation
+      "LOCK",
+      "DISCARD",
+      "LISTEN",
+      "NOTIFY",
+      "UNLISTEN",
+      "PREPARE",
+      "DEALLOCATE",
+      "DECLARE",
+      "FETCH",
+      "MOVE",
+      "CLOSE", // Cursor operations
+      "CHECKPOINT",
+      "COMMENT",
+      "PG_SLEEP",
+      "PG_TERMINATE",
+      "PG_CANCEL", // Resource exhaustion
+      "DBLINK",
+      "FILE_",
+      "LO_",
+      "LARGE_OBJECT", // External access
     ];
 
     const upperQuery = trimmedQuery.toUpperCase();
