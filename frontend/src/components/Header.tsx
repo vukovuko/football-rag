@@ -69,6 +69,15 @@ export default function Header() {
             >
               Playground
             </Link>
+            <Link
+              to="/rag"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              activeProps={{
+                className: "text-sm font-medium text-foreground",
+              }}
+            >
+              RAG
+            </Link>
           </nav>
         </div>
 
@@ -148,6 +157,16 @@ export default function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Playground
+                  </Link>
+                  <Link
+                    to="/rag"
+                    className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    activeProps={{
+                      className: "text-base font-medium text-foreground",
+                    }}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Chat
                   </Link>
                 </nav>
               </div>

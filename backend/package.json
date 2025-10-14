@@ -26,7 +26,9 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@ai-sdk/google": "^2.0.23",
     "@epic-web/remember": "^1.1.0",
+    "ai": "^5.0.71",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

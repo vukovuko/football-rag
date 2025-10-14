@@ -44,6 +44,9 @@ const envSchema = z.object({
     })
     .default([]),
 
+  // Google Generative API Key
+  GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
+
   // Logging
   LOG_LEVEL: z
     .enum(["error", "warn", "info", "debug", "trace"])

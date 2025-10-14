@@ -6,6 +6,7 @@ import { env, isDev, isTestEnv } from "../env.ts";
 import { playersRouter } from "./routes/players.ts";
 import { teamsRouter } from "./routes/teams.ts";
 import { playgroundRouter } from "./routes/playground.ts";
+import { ragRouter } from "./routes/rag.ts";
 
 const app = express();
 
@@ -41,6 +42,7 @@ apiRouter.get("/health", (req, res) => {
 apiRouter.use("/players", playersRouter);
 apiRouter.use("/teams", teamsRouter);
 apiRouter.use("/playground", playgroundRouter);
+apiRouter.use("/rag", ragRouter);
 
 // Mount all API routes under /api
 app.use("/api", apiRouter);
