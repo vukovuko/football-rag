@@ -74,8 +74,6 @@ Some players in the lineup data do not have country information and were skipped
 ## Documentation
 
 Detailed documentation available in the project:
-- `starting_over/` - Complete data specification and schema design
-- `SIMPLE_DEPLOY.md` - VPS deployment guide
 - `backend/EVENTS_ETL_PLAN.md` - Events ETL strategy
 
 ## Available Scripts
